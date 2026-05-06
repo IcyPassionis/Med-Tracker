@@ -582,11 +582,11 @@ impl MedicationEditPanel {
         let interval_active = self.schedule_mode == ScheduleMode::Interval;
         let mode_toggle = row![
             button("Interval")
-                .style(style::time::button::calendar_button(interval_active))
+                .style(style::time::button::calendar_button(interval_active, false))
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Interval)),
             button("Weekdays")
-                .style(style::time::button::calendar_button(!interval_active))
+                .style(style::time::button::calendar_button(!interval_active, false))
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Weekdays)),
         ]

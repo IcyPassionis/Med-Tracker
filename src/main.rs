@@ -66,7 +66,13 @@ fn new() -> (App, Task<Message>) {
     });
     app.window_id = Some(main_id);
 
-    (app, open_task.map(Message::WindowOpened))
+    let scroll_task = if app.uistate.timeui.needs_scroll_to_today {
+        Task::done(Message::Time(home::time::Message::ScrollToToday))
+    } else {
+        Task::none()
+    };
+
+    (app, Task::batch([open_task.map(Message::WindowOpened), scroll_task]))
 }
 
 fn save(state: &App) {
@@ -235,17 +241,18 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 msg,
                 home::time::Message::MedicationAdd(home::medicationaddpanel::Message::Done)
             );
-            state
+            let task = state
                 .uistate
                 .timeui
-                .update(&mut state.medicationtracker, msg);
+                .update(&mut state.medicationtracker, msg)
+                .map(Message::Time);
             if should_generate {
                 generate_future_records(&mut state.medicationtracker);
             }
             if should_save {
                 save(state);
             }
-            Task::none()
+            task
         }
         Message::Medications(msg) => {
             use crate::ui::panel::medications::editpanel::Message as EditMsg;

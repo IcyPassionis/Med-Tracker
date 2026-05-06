@@ -6,14 +6,17 @@ use crate::ui::style;
 use crate::ui::style::time::container::{record_status_container, schedule_container};
 use chrono::{Datelike, Duration, Local, NaiveDate, Timelike};
 use iced::Length::{Fill, FillPortion, Shrink};
-use iced::widget::{Image, button, column, container, row, scrollable, stack, text};
-use iced::{ContentFit, Element, Padding, alignment};
+use iced::widget::{Image, Id, button, column, container, row, scrollable, stack, text};
+use iced::widget::operation;
+use iced::{ContentFit, Element, Padding, alignment, Task};
 
 pub struct TimeUI {
     pub selected_date: NaiveDate,
     medication_panel: super::medicationaddpanel::MedicationAddPanel,
     reschedule_panel: super::reschedulepanel::ReschedulePanel,
     taken_panel: super::takenpanel::TakenPanel,
+    calendar_scroll_id: Id,
+    pub needs_scroll_to_today: bool,
 }
 
 impl TimeUI {
@@ -23,6 +26,8 @@ impl TimeUI {
             medication_panel: super::medicationaddpanel::MedicationAddPanel::new(),
             reschedule_panel: super::reschedulepanel::ReschedulePanel::new(),
             taken_panel: super::takenpanel::TakenPanel::new(),
+            calendar_scroll_id: Id::unique(),
+            needs_scroll_to_today: true,
         }
     }
 
@@ -61,22 +66,54 @@ impl TimeUI {
         }
     }
 
-    pub fn update(&mut self, state: &mut MedicationTracker, message: Message) {
+    pub fn update(&mut self, state: &mut MedicationTracker, message: Message) -> Task<Message> {
         match message {
             Message::SelectDay(date) => {
                 self.selected_date = date;
-                println!("Current TimeUI Selected Date: {}", self.selected_date)
+                println!("Current TimeUI Selected Date: {}", self.selected_date);
+                Task::none()
             }
-            Message::MedicationAdd(msg) => self.medication_panel.update(state, msg),
-            Message::MarkSkipped(id) => state.mark_as_skipped(&id),
-            Message::MarkTakenToggle(id) => state.mark_as_taken(&id),
+            Message::MedicationAdd(msg) => {
+                self.medication_panel.update(state, msg);
+                Task::none()
+            }
+            Message::MarkSkipped(id) => {
+                state.mark_as_skipped(&id);
+                Task::none()
+            }
+            Message::MarkTakenToggle(id) => {
+                state.mark_as_taken(&id);
+                Task::none()
+            }
             Message::Taken(msg) => {
                 self.taken_panel.update(state, msg);
+                Task::none()
             }
             Message::Reschedule(msg) => {
                 self.reschedule_panel.update(state, msg);
+                Task::none()
             }
-            Message::ToggleSound(_hour, _minute) => {}
+            Message::ToggleSound(_hour, _minute) => Task::none(),
+            Message::ScrollToToday => {
+                self.needs_scroll_to_today = false;
+                let relative_x = 30.0 / 61.0;
+                operation::snap_to(
+                    self.calendar_scroll_id.clone(),
+                    scrollable::RelativeOffset { x: Some(relative_x), y: Some(0.0) },
+                )
+            }
+            Message::ScrollCalendarLeft => {
+                operation::scroll_by(
+                    self.calendar_scroll_id.clone(),
+                    scrollable::AbsoluteOffset { x: -400.0, y: 0.0 },
+                )
+            }
+            Message::ScrollCalendarRight => {
+                operation::scroll_by(
+                    self.calendar_scroll_id.clone(),
+                    scrollable::AbsoluteOffset { x: 400.0, y: 0.0 },
+                )
+            }
         }
     }
 
@@ -216,34 +253,53 @@ impl TimeUI {
         .into()
     }
 
-    fn calendar_part<'a>(&self) -> Element<'a, Message> {
+fn calendar_part<'a>(&self) -> Element<'a, Message> {
         let today = Local::now().date_naive();
-        let mut days = row![].spacing(35);
-        for i in 0..8 {
+        let mut days = row![].spacing(8);
+        let days_back = 30i64;
+        let days_forward = 30i64;
+        for i in -days_back..=days_forward {
             let date = today + Duration::days(i);
             let weekday = match date.weekday() {
-                chrono::Weekday::Mon => "Monday",
-                chrono::Weekday::Tue => "Tuesday",
-                chrono::Weekday::Wed => "Wednesday",
-                chrono::Weekday::Thu => "Thursday",
-                chrono::Weekday::Fri => "Friday",
-                chrono::Weekday::Sat => "Saturday",
-                chrono::Weekday::Sun => "Sunday",
+                chrono::Weekday::Mon => "Mon",
+                chrono::Weekday::Tue => "Tue",
+                chrono::Weekday::Wed => "Wed",
+                chrono::Weekday::Thu => "Thu",
+                chrono::Weekday::Fri => "Fri",
+                chrono::Weekday::Sat => "Sat",
+                chrono::Weekday::Sun => "Sun",
             };
             let day_month = format!("{}/{}", date.day(), date.month());
-            let label = column![text(weekday).center(), text(day_month).center()].spacing(50);
+            let label = column![text(weekday).center(), text(day_month).center()].spacing(20);
             let is_selected = date == self.selected_date;
+            let is_today = date == today;
             days = days.push(
                 button(label)
-                    .style(style::time::button::calendar_button(is_selected))
+                    .style(style::time::button::calendar_button(is_selected, is_today))
                     .padding([20, 30])
-                    .width(FillPortion(1))
+                    .width(130)
                     .on_press(Message::SelectDay(date)),
             );
         }
-        container(container(days).max_width(1358).width(Fill))
-            .center_x(Fill)
-            .height(Shrink)
+        let cal_scrollable = scrollable(days)
+            .direction(scrollable::Direction::Horizontal(
+                scrollable::Scrollbar::hidden(),
+            ))
+            .id(self.calendar_scroll_id.clone());
+
+        let left_arrow = button(text("<").size(20))
+            .style(style::time::button::record_action_button)
+            .padding([10, 14])
+            .on_press(Message::ScrollCalendarLeft);
+        let right_arrow = button(text(">").size(20))
+            .style(style::time::button::record_action_button)
+            .padding([10, 14])
+            .on_press(Message::ScrollCalendarRight);
+
+        row![left_arrow, container(cal_scrollable.width(Fill).height(Shrink)).width(Fill), right_arrow]
+            .align_y(iced::alignment::Vertical::Center)
+            .spacing(8)
+            .width(Fill)
             .padding(Padding::new(0.0).bottom(20))
             .into()
     }
@@ -258,4 +314,7 @@ pub enum Message {
     MarkTakenToggle(String),
     Reschedule(super::reschedulepanel::Message),
     ToggleSound(u32, u32),
+    ScrollToToday,
+    ScrollCalendarLeft,
+    ScrollCalendarRight,
 }
