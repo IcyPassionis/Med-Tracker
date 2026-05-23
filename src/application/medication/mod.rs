@@ -1,3 +1,4 @@
+pub mod dosetype;
 pub mod medication;
 pub mod occurrencestatus;
 pub mod periodtype;

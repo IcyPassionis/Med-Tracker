@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Record {
     pub id: String,
-    pub medication_id: String,       // UUID of medication.
-    pub schedule_id: String,         // Schedule UUID of medication
-    pub time: DateTime<chrono::Utc>, // Time of record
+    pub medication_id: String,
+    pub schedule_id: String,
+    pub time: DateTime<chrono::Utc>,
     pub occurrence_status: OccurrenceStatus,
     #[serde(default)]
     pub rescheduled: bool,
+    #[serde(default)]
+    pub pills_deducted: f32,
 }
 impl Record {
     pub fn new(medication_id: String, schedule_id: String, time: DateTime<chrono::Utc>) -> Self {
@@ -22,6 +24,7 @@ impl Record {
             time,
             occurrence_status: OccurrenceStatus::Pending,
             rescheduled: false,
+            pills_deducted: 0.0,
         }
     }
     pub fn empty_new() -> Self {
@@ -32,6 +35,7 @@ impl Record {
             time: chrono::Utc::now(),
             occurrence_status: OccurrenceStatus::Pending,
             rescheduled: false,
+            pills_deducted: 0.0,
         }
     }
 }
