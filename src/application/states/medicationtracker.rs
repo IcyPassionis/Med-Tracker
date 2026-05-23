@@ -116,6 +116,13 @@ impl MedicationTracker {
         }
     }
     pub fn mark_as_skipped(&mut self, record_id: &str) {
+        let is_taken = match self.records.iter().find(|r| r.id == record_id) {
+            Some(r) => matches!(r.occurrence_status, OccurrenceStatus::Taken { .. }),
+            None => return,
+        };
+        if is_taken {
+            self.restore_stock(record_id);
+        }
         if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
             if matches!(record.occurrence_status, OccurrenceStatus::Skipped { .. }) {
                 record.occurrence_status = OccurrenceStatus::Pending;
@@ -131,6 +138,13 @@ impl MedicationTracker {
     }
 
     pub fn reschedule_record(&mut self, record_id: &str, new_time: DateTime<Utc>) {
+        let is_taken = match self.records.iter().find(|r| r.id == record_id) {
+            Some(r) => matches!(r.occurrence_status, OccurrenceStatus::Taken { .. }),
+            None => return,
+        };
+        if is_taken {
+            self.restore_stock(record_id);
+        }
         if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
             record.time = new_time;
             record.rescheduled = true;
