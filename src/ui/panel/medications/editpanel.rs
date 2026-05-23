@@ -41,6 +41,8 @@ pub struct MedicationEditPanel {
     schedule_hour: String,
     schedule_minute: String,
     schedule_period_time: String,
+    schedule_dose: String,
+    schedule_error: Option<String>,
     selected_weekdays: Vec<Weekday>,
     stock_edit_input: String,
     name_error: Option<String>,
@@ -72,6 +74,7 @@ pub enum Message {
     ScheduleHourChange(String),
     ScheduleMinuteChange(String),
     SchedulePeriodTimeChange(String),
+    ScheduleDoseChange(String),
     SaveSchedule,
     BackToScheduleList,
     StockEditChange(String),
@@ -94,6 +97,8 @@ impl MedicationEditPanel {
             schedule_hour: String::new(),
             schedule_minute: String::new(),
             schedule_period_time: String::new(),
+            schedule_dose: String::new(),
+            schedule_error: None,
             selected_weekdays: vec![],
             stock_edit_input: String::new(),
             name_error: None,
@@ -136,6 +141,8 @@ impl MedicationEditPanel {
         self.schedule_hour = String::new();
         self.schedule_minute = String::new();
         self.schedule_period_time = String::new();
+        self.schedule_dose = String::new();
+        self.schedule_error = None;
         self.schedule_period_type = PeriodType::Daily;
         self.schedule_mode = ScheduleMode::Interval;
         self.selected_weekdays = vec![];
@@ -149,7 +156,7 @@ impl MedicationEditPanel {
             Section::Options => self.options_overlay(tracker),
             Section::MedicationEdit => self.medication_edit_overlay(),
             Section::ScheduleList => self.schedule_list_overlay(tracker),
-            Section::ScheduleEdit { .. } => self.schedule_edit_overlay(),
+            Section::ScheduleEdit { .. } => self.schedule_edit_overlay(tracker),
             Section::Stock => self.stock_overlay(),
         };
         Some(
@@ -254,6 +261,7 @@ impl MedicationEditPanel {
                                 ScheduleMode::Interval
                             };
                             self.selected_weekdays = schedule.week_day.clone().unwrap_or_default();
+                            self.schedule_dose = schedule.dose.to_string();
                             self.editing_schedule_id = Some(id.clone());
                         }
                     }
@@ -288,13 +296,39 @@ impl MedicationEditPanel {
                     self.selected_weekdays.push(day);
                 }
             }
-            Message::ScheduleHourChange(v) => self.schedule_hour = v,
-            Message::ScheduleMinuteChange(v) => self.schedule_minute = v,
-            Message::SchedulePeriodTimeChange(v) => self.schedule_period_time = v,
+            Message::ScheduleHourChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_hour = v;
+                }
+            }
+            Message::ScheduleMinuteChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_minute = v;
+                }
+            }
+            Message::SchedulePeriodTimeChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_period_time = v;
+                }
+            }
+            Message::ScheduleDoseChange(v) => {
+                self.schedule_error = None;
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                    let dots = v.chars().filter(|c| *c == '.').count();
+                    if dots <= 1 && !v.starts_with('-') {
+                        self.schedule_dose = v;
+                    }
+                }
+            }
             Message::SaveSchedule => {
                 let hour: u8 = self.schedule_hour.parse().unwrap_or(0);
                 let minute: u8 = self.schedule_minute.parse().unwrap_or(0);
                 let period_time: u8 = self.schedule_period_time.parse().unwrap_or(1);
+                let dose: f32 = self.schedule_dose.parse().unwrap_or(0.0);
+                if dose <= 0.0 {
+                    self.schedule_error = Some("Dose must be greater than zero.".into());
+                    return;
+                }
                 let (period_type, week_day) = match self.schedule_mode {
                     ScheduleMode::Interval => (Some(self.schedule_period_type), None),
                     ScheduleMode::Weekdays => {
@@ -326,12 +360,13 @@ impl MedicationEditPanel {
                                 s.period_time = period_time;
                                 s.period_type = period_type;
                                 s.week_day = week_day;
+                                s.dose = dose;
                             }
                         }
                     } else {
                         if let Some(med) = tracker.medications.iter_mut().find(|m| m.id == med_id) {
                             let mut new_schedule =
-                                Schedule::new([hour, minute], period_type, period_time, 1.0);
+                                Schedule::new([hour, minute], period_type, period_time, dose);
                             new_schedule.week_day = week_day;
                             med.schedules.push(new_schedule);
                         }
@@ -341,6 +376,7 @@ impl MedicationEditPanel {
                 self.section = Section::ScheduleList;
             }
             Message::BackToScheduleList => {
+                self.schedule_error = None;
                 self.reset_schedule_fields();
                 self.section = Section::ScheduleList;
             }
@@ -570,6 +606,13 @@ impl MedicationEditPanel {
             .map(|m| m.schedules.as_slice())
             .unwrap_or(&[]);
 
+        let dose_type_str = self
+            .current_medication_id
+            .as_deref()
+            .and_then(|id| tracker.medications.iter().find(|m| m.id == id))
+            .map(|m| format!("{}", m.dose_type))
+            .unwrap_or_default();
+
         let schedule_list: Element<'a, Message> = if schedules.is_empty() {
             container(text("No schedules yet").size(14).center())
                 .width(Fill)
@@ -579,12 +622,14 @@ impl MedicationEditPanel {
             let mut rows = column![].spacing(8);
             for schedule in schedules {
                 let time_str = format!("{:02}:{:02}", schedule.time[0], schedule.time[1]);
+                let dose_str = format!("{} {}", schedule.dose, dose_type_str);
                 let period_str = match &schedule.period_type {
                     Some(pt) => format!("{}, every {} unit(s)", pt, schedule.period_time),
                     None => String::from("Weekdays"),
                 };
                 let row_content = row![
                     text(time_str).size(16).width(FillPortion(1)),
+                    text(dose_str).size(14).width(FillPortion(1)),
                     text(period_str).size(14).width(Fill),
                 ]
                 .spacing(10)
@@ -631,7 +676,7 @@ impl MedicationEditPanel {
         self.centered_panel(content.into())
     }
 
-    fn schedule_edit_overlay<'a>(&self) -> Element<'a, Message> {
+    fn schedule_edit_overlay<'a>(&self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
         let is_editing = self.editing_schedule_id.is_some();
         let title = if is_editing {
             "Edit Schedule"
@@ -677,6 +722,26 @@ impl MedicationEditPanel {
         ]
         .spacing(10)
         .align_y(alignment::Vertical::Center);
+
+        let dose_type_str = self
+            .current_medication_id
+            .as_deref()
+            .and_then(|id| tracker.medications.iter().find(|m| m.id == id))
+            .map(|m| format!("{}", m.dose_type))
+            .unwrap_or_default();
+
+        let mut dose_field = column![
+            text(format!("Dose ({})", dose_type_str)).size(16),
+            text_input("1", &self.schedule_dose).on_input(Message::ScheduleDoseChange),
+        ]
+        .spacing(8);
+        if let Some(err) = &self.schedule_error {
+            dose_field = dose_field.push(text(err.clone()).size(13).style(|_theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(Color::from_rgb(0.85, 0.2, 0.2)),
+                }
+            }));
+        }
 
         let interval_form: Element<'a, Message> = if interval_active {
             let period_label = match self.schedule_period_type {
@@ -745,6 +810,7 @@ impl MedicationEditPanel {
             header,
             mode_toggle,
             time_row,
+            dose_field,
             interval_form,
             container(column![]).height(Fill),
             save_btn,

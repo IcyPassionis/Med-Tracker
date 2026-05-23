@@ -41,6 +41,8 @@ pub struct MedicationAddPanel {
     schedule_hour: String,
     schedule_minute: String,
     schedule_period_time: String,
+    schedule_dose: String,
+    schedule_error: Option<String>,
     selected_weekdays: Vec<Weekday>,
 }
 
@@ -62,6 +64,7 @@ pub enum Message {
     ScheduleHourChange(String),
     ScheduleMinuteChange(String),
     SchedulePeriodTimeChange(String),
+    ScheduleDoseChange(String),
     SaveSchedule,
     DeleteSchedule(String),
     Done,
@@ -82,6 +85,8 @@ impl MedicationAddPanel {
             schedule_hour: String::new(),
             schedule_minute: String::new(),
             schedule_period_time: String::new(),
+            schedule_dose: String::new(),
+            schedule_error: None,
             selected_weekdays: vec![],
         }
     }
@@ -120,7 +125,14 @@ impl MedicationAddPanel {
             Message::Open => self.section = Section::AddMedication,
             Message::Close => self.close(),
             Message::MedicationNameChange(v) => self.medication_name = v,
-            Message::MedicationStockChange(v) => self.medication_stock = v,
+            Message::MedicationStockChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                    let dots = v.chars().filter(|c| *c == '.').count();
+                    if dots <= 1 && !v.starts_with('-') {
+                        self.medication_stock = v;
+                    }
+                }
+            }
             Message::MedicationPillDoseChange(v) => {
                 if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
                     let dots = v.chars().filter(|c| *c == '.').count();
@@ -163,6 +175,7 @@ impl MedicationAddPanel {
                                 ScheduleMode::Interval
                             };
                             self.selected_weekdays = schedule.week_day.clone().unwrap_or_default();
+                            self.schedule_dose = schedule.dose.to_string();
                             self.editing_schedule_id = Some(id);
                         }
                     }
@@ -170,6 +183,7 @@ impl MedicationAddPanel {
                 self.section = Section::AddSchedule;
             }
             Message::BackToList => {
+                self.schedule_error = None;
                 self.reset_schedule_fields();
                 self.section = Section::ScheduleList;
             }
@@ -182,9 +196,30 @@ impl MedicationAddPanel {
                     self.selected_weekdays.push(day);
                 }
             }
-            Message::ScheduleHourChange(v) => self.schedule_hour = v,
-            Message::ScheduleMinuteChange(v) => self.schedule_minute = v,
-            Message::SchedulePeriodTimeChange(v) => self.schedule_period_time = v,
+            Message::ScheduleHourChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_hour = v;
+                }
+            }
+            Message::ScheduleMinuteChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_minute = v;
+                }
+            }
+            Message::SchedulePeriodTimeChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit()) {
+                    self.schedule_period_time = v;
+                }
+            }
+            Message::ScheduleDoseChange(v) => {
+                self.schedule_error = None;
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                    let dots = v.chars().filter(|c| *c == '.').count();
+                    if dots <= 1 && !v.starts_with('-') {
+                        self.schedule_dose = v;
+                    }
+                }
+            }
             Message::DeleteSchedule(id) => {
                 if let Some(med_id) = &self.current_medication_id {
                     if let Some(med) = state.medications.iter_mut().find(|m| m.id == *med_id) {
@@ -196,6 +231,11 @@ impl MedicationAddPanel {
                 let hour: u8 = self.schedule_hour.parse().unwrap_or(0);
                 let minute: u8 = self.schedule_minute.parse().unwrap_or(0);
                 let period_time: u8 = self.schedule_period_time.parse().unwrap_or(1);
+                let dose: f32 = self.schedule_dose.parse().unwrap_or(0.0);
+                if dose <= 0.0 {
+                    self.schedule_error = Some("Dose must be greater than zero.".into());
+                    return;
+                }
                 let (period_type, week_day) = match self.schedule_mode {
                     ScheduleMode::Interval => (Some(self.schedule_period_type), None),
                     ScheduleMode::Weekdays => {
@@ -218,7 +258,7 @@ impl MedicationAddPanel {
                             }
                         } else {
                             let mut new_schedule =
-                                Schedule::new([hour, minute], period_type, period_time, 1.0);
+                                Schedule::new([hour, minute], period_type, period_time, dose);
                             new_schedule.week_day = week_day;
                             med.schedules.push(new_schedule);
                         }
@@ -248,6 +288,8 @@ impl MedicationAddPanel {
         self.schedule_hour = String::new();
         self.schedule_minute = String::new();
         self.schedule_period_time = String::new();
+        self.schedule_dose = String::new();
+        self.schedule_error = None;
         self.schedule_period_type = PeriodType::Daily;
         self.schedule_mode = ScheduleMode::Interval;
         self.selected_weekdays = vec![];
@@ -353,6 +395,13 @@ impl MedicationAddPanel {
             .map(|m| m.schedules.as_slice())
             .unwrap_or(&[]);
 
+        let dose_type_str = self
+            .current_medication_id
+            .as_deref()
+            .and_then(|id| tracker.medications.iter().find(|m| m.id == id))
+            .map(|m| format!("{}", m.dose_type))
+            .unwrap_or_default();
+
         let schedule_list: Element<'a, Message> = if schedules.is_empty() {
             container(text("No schedules yet").size(14).center())
                 .width(Fill)
@@ -362,12 +411,14 @@ impl MedicationAddPanel {
             let mut rows = column![].spacing(8);
             for schedule in schedules {
                 let time_str = format!("{:02}:{:02}", schedule.time[0], schedule.time[1]);
+                let dose_str = format!("{} {}", schedule.dose, dose_type_str);
                 let period_str = match &schedule.period_type {
                     Some(pt) => format!("{}, every {} unit(s)", pt, schedule.period_time),
                     None => String::from("Weekdays"),
                 };
                 let row_content = row![
                     text(time_str).size(16).width(FillPortion(1)),
+                    text(dose_str).size(14).width(FillPortion(1)),
                     text(period_str).size(14).width(Fill),
                 ]
                 .spacing(10)
@@ -481,6 +532,26 @@ impl MedicationAddPanel {
         .spacing(10)
         .align_y(alignment::Vertical::Center);
 
+        let dose_type_str = self
+            .current_medication_id
+            .as_deref()
+            .and_then(|id| tracker.medications.iter().find(|m| m.id == id))
+            .map(|m| format!("{}", m.dose_type))
+            .unwrap_or_default();
+
+        let mut dose_field = column![
+            text(format!("Dose ({})", dose_type_str)).size(16),
+            text_input("1", &self.schedule_dose).on_input(Message::ScheduleDoseChange),
+        ]
+        .spacing(8);
+        if let Some(err) = &self.schedule_error {
+            dose_field = dose_field.push(text(err.clone()).size(13).style(|_theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(Color::from_rgb(0.85, 0.2, 0.2)),
+                }
+            }));
+        }
+
         // Interval-specific fields
         let interval_form: Element<'a, Message> = if interval_active {
             let period_label = match self.schedule_period_type {
@@ -549,6 +620,7 @@ impl MedicationAddPanel {
             header,
             mode_toggle,
             time_row,
+            dose_field,
             interval_form,
             container(column![]).height(Fill),
             save_btn
