@@ -1,6 +1,6 @@
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
-use crate::ui::panel::medications::editpanel;
+use crate::ui::panel::medications::{editpanel, refillpanel};
 use crate::ui::style;
 use crate::ui::style::medications::button as med_button;
 use crate::ui::style::medications::container as med_container;
@@ -11,6 +11,7 @@ use iced::{ContentFit, Element, alignment};
 pub struct Record {
     pending_delete_id: Option<String>,
     pub edit_panel: editpanel::MedicationEditPanel,
+    pub refill_panel: refillpanel::RefillPanel,
 }
 
 impl Record {
@@ -18,10 +19,11 @@ impl Record {
         Self {
             pending_delete_id: None,
             edit_panel: editpanel::MedicationEditPanel::new(),
+            refill_panel: refillpanel::RefillPanel::new(),
         }
     }
 
-    pub fn view<'a>(&self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
+    pub fn view<'a>(&'a self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
         let list = self.medication_list(tracker);
 
         let mut layers: Vec<Element<'a, Message>> = vec![list];
@@ -33,6 +35,10 @@ impl Record {
 
         if let Some(overlay) = self.edit_panel.view(tracker) {
             layers.push(overlay.map(Message::Edit));
+        }
+
+        if let Some(overlay) = self.refill_panel.view() {
+            layers.push(overlay.map(Message::Refill));
         }
 
         if layers.len() == 1 {
@@ -59,8 +65,14 @@ impl Record {
             Message::OpenEdit(id) => {
                 self.edit_panel.open(id, tracker);
             }
+            Message::OpenRefill(id) => {
+                self.refill_panel.open(id);
+            }
             Message::Edit(msg) => {
                 self.edit_panel.update(tracker, msg);
+            }
+            Message::Refill(msg) => {
+                self.refill_panel.update(tracker, msg);
             }
         }
     }
@@ -88,12 +100,17 @@ impl Record {
             .spacing(4)
             .width(Fill);
 
+            let refill_btn = button(button_with_icon!("icons/medicine-syrup.png", 20, 0))
+                .style(style::time::button::overlay_close_button)
+                .padding(10)
+                .on_press(Message::OpenRefill(med.id.clone()));
+
             let delete_btn = button(button_with_icon!("icons/cross.png", 20, 0))
                 .style(style::time::button::overlay_close_button)
                 .padding(10)
                 .on_press(Message::AskDelete(med.id.clone()));
 
-            let card_row = row![pill_placeholder, info, delete_btn]
+            let card_row = row![pill_placeholder, info, refill_btn, delete_btn]
                 .spacing(16)
                 .align_y(alignment::Vertical::Center)
                 .padding([14, 20]);
@@ -175,5 +192,7 @@ pub enum Message {
     ConfirmDelete,
     CancelDelete,
     OpenEdit(String),
+    OpenRefill(String),
     Edit(editpanel::Message),
+    Refill(refillpanel::Message),
 }
