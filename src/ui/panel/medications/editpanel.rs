@@ -1,3 +1,4 @@
+use crate::application::medication::dosetype::DoseType;
 use crate::application::medication::occurrencestatus::OccurrenceStatus;
 use crate::application::medication::periodtype::PeriodType;
 use crate::application::medication::schedule::Schedule;
@@ -32,6 +33,8 @@ pub struct MedicationEditPanel {
     pub section: Section,
     name_input: String,
     stock_input: String,
+    pill_dose_input: String,
+    dose_type: DoseType,
     editing_schedule_id: Option<String>,
     schedule_mode: ScheduleMode,
     schedule_period_type: PeriodType,
@@ -42,6 +45,7 @@ pub struct MedicationEditPanel {
     stock_edit_input: String,
     name_error: Option<String>,
     stock_error: Option<String>,
+    pill_dose_error: Option<String>,
     stock_edit_error: Option<String>,
     pub pending_save: bool,
 }
@@ -54,6 +58,8 @@ pub enum Message {
     GoToStock,
     NameChange(String),
     StockChange(String),
+    PillDoseChange(String),
+    DoseTypeChange(DoseType),
     SaveMedicationEdit,
     BackToOptions,
     OpenNewSchedule,
@@ -80,6 +86,8 @@ impl MedicationEditPanel {
             section: Section::Options,
             name_input: String::new(),
             stock_input: String::new(),
+            pill_dose_input: String::new(),
+            dose_type: DoseType::Mg,
             editing_schedule_id: None,
             schedule_mode: ScheduleMode::Interval,
             schedule_period_type: PeriodType::Daily,
@@ -90,6 +98,7 @@ impl MedicationEditPanel {
             stock_edit_input: String::new(),
             name_error: None,
             stock_error: None,
+            pill_dose_error: None,
             stock_edit_error: None,
             pending_save: false,
         }
@@ -99,6 +108,8 @@ impl MedicationEditPanel {
         if let Some(med) = tracker.medications.iter().find(|m| m.id == id) {
             self.name_input = med.name.clone();
             self.stock_input = med.stock.to_string();
+            self.pill_dose_input = med.pill_dose.to_string();
+            self.dose_type = med.dose_type;
             self.stock_edit_input = med.stock.to_string();
         }
         self.current_medication_id = Some(id);
@@ -110,9 +121,12 @@ impl MedicationEditPanel {
         self.current_medication_id = None;
         self.name_input = String::new();
         self.stock_input = String::new();
+        self.pill_dose_input = String::new();
+        self.dose_type = DoseType::Mg;
         self.stock_edit_input = String::new();
         self.name_error = None;
         self.stock_error = None;
+        self.pill_dose_error = None;
         self.stock_edit_error = None;
         self.reset_schedule_fields();
     }
@@ -163,6 +177,16 @@ impl MedicationEditPanel {
                 self.stock_error = None;
                 self.stock_input = v;
             }
+            Message::PillDoseChange(v) => {
+                self.pill_dose_error = None;
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                    let dots = v.chars().filter(|c| *c == '.').count();
+                    if dots <= 1 {
+                        self.pill_dose_input = v;
+                    }
+                }
+            }
+            Message::DoseTypeChange(v) => self.dose_type = v,
             Message::SaveMedicationEdit => {
                 let name = self.name_input.trim();
                 if name.len() < 3 {
@@ -179,14 +203,27 @@ impl MedicationEditPanel {
                         self.stock_error = Some("Stock cannot be negative.".into());
                         return;
                     }
-                    Some(v) => {
-                        if let Some(id) = self.current_medication_id.clone() {
-                            if let Some(med) = tracker.medications.iter_mut().find(|m| m.id == id) {
-                                med.name = name.to_string();
-                                med.stock = v;
-                                self.pending_save = true;
-                            }
-                        }
+                    Some(_) => {}
+                }
+                let parsed_pill_dose: Option<f32> = self.pill_dose_input.parse().ok();
+                match parsed_pill_dose {
+                    None => {
+                        self.pill_dose_error = Some("Enter a valid number.".into());
+                        return;
+                    }
+                    Some(v) if v <= 0.0 => {
+                        self.pill_dose_error = Some("Pill dose must be greater than zero.".into());
+                        return;
+                    }
+                    Some(_) => {}
+                }
+                if let Some(id) = self.current_medication_id.clone() {
+                    if let Some(med) = tracker.medications.iter_mut().find(|m| m.id == id) {
+                        med.name = name.to_string();
+                        med.stock = parsed_stock.unwrap();
+                        med.pill_dose = parsed_pill_dose.unwrap();
+                        med.dose_type = self.dose_type;
+                        self.pending_save = true;
                     }
                 }
                 self.section = Section::Options;
@@ -194,6 +231,7 @@ impl MedicationEditPanel {
             Message::BackToOptions => {
                 self.name_error = None;
                 self.stock_error = None;
+                self.pill_dose_error = None;
                 self.section = Section::Options;
             }
 
@@ -380,6 +418,8 @@ impl MedicationEditPanel {
 
         let name = med.map(|m| m.name.as_str()).unwrap_or("Medication");
         let stock = med.map(|m| m.stock).unwrap_or(0.0);
+        let dose_type = med.map(|m| m.dose_type).unwrap_or_default();
+        let pill_dose = med.map(|m| m.pill_dose).unwrap_or(1.0);
         let schedule_count = med.map(|m| m.schedules.len()).unwrap_or(0);
 
         let header = row![
@@ -391,7 +431,8 @@ impl MedicationEditPanel {
         .align_y(alignment::Vertical::Center);
 
         let info = column![
-            text(format!("Stock: {}", stock)).size(16),
+            text(format!("Stock: {} {}", stock, dose_type)).size(16),
+            text(format!("Pill Dose: {} {}", pill_dose, dose_type)).size(16),
             text(format!("Schedules: {}", schedule_count)).size(16),
         ]
         .spacing(8);
@@ -455,9 +496,35 @@ impl MedicationEditPanel {
             text("Stock").size(16),
             text_input("0", &self.stock_input).on_input(Message::StockChange),
         ]
-        .spacing(8);
+        .spacing(8)
+        .width(FillPortion(1));
         if let Some(err) = &self.stock_error {
             stock_field = stock_field.push(text(err.clone()).size(13).style(|_theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(Color::from_rgb(0.85, 0.2, 0.2)),
+                }
+            }));
+        }
+
+        let dose_type_field = column![
+            text("Unit Type").size(16),
+            pick_list(
+                vec![DoseType::Mg, DoseType::Mcg, DoseType::Ml, DoseType::Unit],
+                Some(self.dose_type),
+                Message::DoseTypeChange,
+            )
+            .width(Fill),
+        ]
+        .spacing(8)
+        .width(FillPortion(1));
+
+        let mut pill_dose_field = column![
+            text("Pill Dose").size(16),
+            text_input("1", &self.pill_dose_input).on_input(Message::PillDoseChange),
+        ]
+        .spacing(8);
+        if let Some(err) = &self.pill_dose_error {
+            pill_dose_field = pill_dose_field.push(text(err.clone()).size(13).style(|_theme: &Theme| {
                 iced::widget::text::Style {
                     color: Some(Color::from_rgb(0.85, 0.2, 0.2)),
                 }
@@ -475,7 +542,8 @@ impl MedicationEditPanel {
         let content = column![
             header,
             name_field,
-            stock_field,
+            row![stock_field, dose_type_field].spacing(20),
+            pill_dose_field,
             container(column![]).height(Fill),
             save_btn,
         ]

@@ -1,3 +1,4 @@
+use crate::application::medication::dosetype::DoseType;
 use crate::application::medication::medication::Medication;
 use crate::application::medication::periodtype::PeriodType;
 use crate::application::medication::schedule::Schedule;
@@ -31,6 +32,8 @@ pub struct MedicationAddPanel {
     pub section: Section,
     medication_name: String,
     medication_stock: String,
+    medication_pill_dose: String,
+    medication_dose_type: DoseType,
     current_medication_id: Option<String>,
     editing_schedule_id: Option<String>,
     schedule_mode: ScheduleMode,
@@ -47,6 +50,8 @@ pub enum Message {
     Close,
     MedicationNameChange(String),
     MedicationStockChange(String),
+    MedicationPillDoseChange(String),
+    MedicationDoseTypeChange(DoseType),
     AddMedication,
     OpenNewSchedule,
     EditSchedule(String),
@@ -68,6 +73,8 @@ impl MedicationAddPanel {
             section: Section::Hidden,
             medication_name: String::new(),
             medication_stock: String::new(),
+            medication_pill_dose: String::new(),
+            medication_dose_type: DoseType::Mg,
             current_medication_id: None,
             editing_schedule_id: None,
             schedule_mode: ScheduleMode::Interval,
@@ -114,13 +121,27 @@ impl MedicationAddPanel {
             Message::Close => self.close(),
             Message::MedicationNameChange(v) => self.medication_name = v,
             Message::MedicationStockChange(v) => self.medication_stock = v,
+            Message::MedicationPillDoseChange(v) => {
+                if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                    let dots = v.chars().filter(|c| *c == '.').count();
+                    if dots <= 1 {
+                        self.medication_pill_dose = v;
+                    }
+                }
+            }
+            Message::MedicationDoseTypeChange(v) => self.medication_dose_type = v,
             Message::AddMedication => {
                 let stock: f32 = self.medication_stock.parse().unwrap_or(0.0);
-                let medication = Medication::new(self.medication_name.clone(), stock);
+                let pill_dose: f32 = self.medication_pill_dose.parse().unwrap_or(1.0_f32).max(0.0);
+                let mut medication = Medication::new(self.medication_name.clone(), stock);
+                medication.pill_dose = pill_dose;
+                medication.dose_type = self.medication_dose_type;
                 self.current_medication_id = Some(medication.id.clone());
                 state.medications.push(medication);
                 self.medication_name = String::new();
                 self.medication_stock = String::new();
+                self.medication_pill_dose = String::new();
+                self.medication_dose_type = DoseType::Mg;
                 self.section = Section::ScheduleList;
             }
             Message::OpenNewSchedule => {
@@ -216,6 +237,8 @@ impl MedicationAddPanel {
     fn reset_all(&mut self) {
         self.medication_name = String::new();
         self.medication_stock = String::new();
+        self.medication_pill_dose = String::new();
+        self.medication_dose_type = DoseType::Mg;
         self.current_medication_id = None;
         self.reset_schedule_fields();
     }
@@ -266,12 +289,30 @@ impl MedicationAddPanel {
 
         let unit_field = column![
             text("Unit Type").size(16),
-            text("mg").size(16), // placeholder — dropdown later
+            pick_list(
+                vec![DoseType::Mg, DoseType::Mcg, DoseType::Ml, DoseType::Unit],
+                Some(self.medication_dose_type),
+                Message::MedicationDoseTypeChange,
+            )
+            .width(Fill),
         ]
         .spacing(8)
         .width(FillPortion(1));
 
-        let form = column![name_field, row![stock_field, unit_field].spacing(20)].spacing(20);
+        let pill_dose_field = column![
+            text("Pill Dose").size(16),
+            text_input("1", &self.medication_pill_dose)
+                .on_input(Message::MedicationPillDoseChange),
+        ]
+        .spacing(8)
+        .width(FillPortion(1));
+
+        let form = column![
+            name_field,
+            row![stock_field, unit_field].spacing(20),
+            pill_dose_field,
+        ]
+        .spacing(20);
 
         let add_btn = container(
             button("Add")
