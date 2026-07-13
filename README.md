@@ -10,7 +10,6 @@ Application is currently on working state, but dont expect much.
 
 ## KNOWN ISSUES
 
-**Tray-icon on Wayland:** Tray icon doesn't implemented on wayland.
 **Stock feature:** It also doesnt implemented yet you can set it but it doesnt used on anything.
 
 ## BUILD & RUN
@@ -25,6 +24,6 @@ cargo build --release-lto
 ## PLATFORM:
 
 - Linux X11 
-- Wayland-  Tray not yet implemented
+- Linux Wayland
 
 also it could work on windows but I didnt test it.
