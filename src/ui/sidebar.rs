@@ -42,7 +42,7 @@ pub fn side_bar(current_panel: &Panel) -> Element<'static, Message> {
             .on_press_maybe(if is_alarm {
                 None
             } else {
-                Some(Message::OpenRecord)
+                Some(Message::OpenCalendar)
             })
             .height(Length::FillPortion(1))
             .width(Fill),

@@ -1,8 +1,8 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum Panel {
     Time,
+    Calendar,
     ManageMeds,
-    Record,
     Settings,
     Alarm,
 }

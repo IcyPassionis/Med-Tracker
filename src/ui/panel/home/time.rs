@@ -121,6 +121,10 @@ impl TimeUI {
         self.medication_panel.close();
     }
 
+    pub fn select_date(&mut self, date: NaiveDate) {
+        self.selected_date = date;
+    }
+
     fn main_part<'a>(&self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
         let mut grouped: std::collections::BTreeMap<(u32, u32), Vec<&Record>> =
             std::collections::BTreeMap::new();

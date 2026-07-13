@@ -1,15 +1,15 @@
-use crate::ui::panel::{alarm, home, managemeds, medications, settings};
+use crate::ui::panel::{alarm, calendar, home, medications, settings};
 use iced;
 #[derive(Debug, Clone)]
 pub enum Message {
     OpenTime,
     OpenManageMeds,
-    OpenRecord,
+    OpenCalendar,
     OpenSettings,
     Settings(settings::Message),
     Time(home::time::Message),
     Medications(medications::medicationsmain::Message),
-    Record(managemeds::Message),
+    Calendar(calendar::calendarui::Message),
     Alarm(alarm::Message),
     TimeCheck,
     TrayLeftClick,

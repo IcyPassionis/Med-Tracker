@@ -212,8 +212,8 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             load_panel(state, &Panel::ManageMeds);
             Task::none()
         }
-        Message::OpenRecord => {
-            load_panel(state, &Panel::Record);
+        Message::OpenCalendar => {
+            load_panel(state, &Panel::Calendar);
             Task::none()
         }
         Message::OpenSettings => {
@@ -280,8 +280,11 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             }
             Task::none()
         }
-        Message::Record(msg) => {
-            state.uistate.recordui.update(msg);
+        Message::Calendar(msg) => {
+            if let Some(date) = state.uistate.calendarui.update(msg) {
+                state.uistate.timeui.select_date(date);
+                load_panel(state, &Panel::Time);
+            }
             Task::none()
         }
         Message::Alarm(msg) => {

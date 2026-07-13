@@ -1,9 +1,9 @@
-use crate::ui::panel::{alarm, home, managemeds, medications, settings};
+use crate::ui::panel::{alarm, calendar, home, medications, settings};
 pub struct UIState {
     pub settingsui: settings::Settingsui,
     pub timeui: home::time::TimeUI,
     pub medicationsui: medications::medicationsmain::Record,
-    pub recordui: managemeds::ManageMedsUI,
+    pub calendarui: calendar::calendarui::CalendarUI,
     pub alarmui: alarm::AlarmUI,
 }
 impl UIState {
@@ -12,7 +12,7 @@ impl UIState {
             settingsui: settings::Settingsui::new(),
             timeui: home::time::TimeUI::new(),
             medicationsui: medications::medicationsmain::Record::new(),
-            recordui: managemeds::ManageMedsUI::new(),
+            calendarui: calendar::calendarui::CalendarUI::new(),
             alarmui: alarm::AlarmUI::new(),
         }
     }
