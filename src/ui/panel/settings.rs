@@ -42,13 +42,13 @@ impl Settingsui {
                 category_card(
                     "Language",
                     settings.language.clone(),
-                    "icons/settings.png",
+                    "icons/language.png",
                     Section::Language,
                 ),
                 category_card(
                     "Theme",
                     theme_summary(settings),
-                    "icons/settings.png",
+                    "icons/paint.png",
                     Section::Theme,
                 ),
             ]
@@ -92,6 +92,7 @@ impl Settingsui {
 
         self.detail_view(
             "Language",
+            "icons/language.png",
             column![setting_row(
                 "Language",
                 "Choose the application language.".to_string(),
@@ -117,6 +118,7 @@ impl Settingsui {
 
         self.detail_view(
             "Theme",
+            "icons/paint.png",
             column![
                 setting_row(
                     "Follow system theme",
@@ -163,6 +165,7 @@ impl Settingsui {
 
         self.detail_view(
             "Sound",
+            sound_icon(settings),
             column![
                 setting_row(
                     "Alarm sound",
@@ -190,6 +193,7 @@ impl Settingsui {
 
         self.detail_view(
             "System",
+            "icons/settings.png",
             column![
                 setting_row(
                     "Minimize to tray icon",
@@ -209,6 +213,7 @@ impl Settingsui {
     fn detail_view<'a>(
         &self,
         title: &'a str,
+        icon_path: &'a str,
         settings: impl Into<Element<'a, Message>>,
     ) -> Element<'a, Message> {
         let settings = settings.into();
@@ -225,10 +230,19 @@ impl Settingsui {
                     .on_press(Message::BackToMain),
             )
             .width(Length::FillPortion(1)),
-            text(title)
-                .size(28)
-                .width(Length::FillPortion(2))
-                .align_x(alignment::Horizontal::Center),
+            container(
+                row![
+                    Image::new(icon_path)
+                        .content_fit(ContentFit::Contain)
+                        .width(30)
+                        .height(30),
+                    text(title).size(28),
+                ]
+                .spacing(10)
+                .align_y(alignment::Vertical::Center),
+            )
+            .width(Length::FillPortion(2))
+            .center_x(Fill),
             container("").width(Length::FillPortion(1)),
         ]
         .width(Fill)
