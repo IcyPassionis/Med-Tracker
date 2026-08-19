@@ -218,10 +218,14 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
         }
         Message::OpenSettings => {
             load_panel(state, &Panel::Settings);
+            state.uistate.settingsui.set_section_to_main();
             Task::none()
         }
         Message::Settings(settings) => {
-            state.uistate.settingsui.update(settings);
+            state
+                .uistate
+                .settingsui
+                .update(&mut state.settings, settings);
             Task::none()
         }
         Message::Time(msg) => {

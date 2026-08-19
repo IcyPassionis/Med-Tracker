@@ -4,4 +4,5 @@ pub mod calendar;
 pub mod color;
 pub mod container;
 pub mod medications;
+pub mod settings;
 pub mod time;

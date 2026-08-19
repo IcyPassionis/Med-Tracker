@@ -22,7 +22,11 @@ pub fn main_content<'a>(state: &'a App) -> Element<'a, Message> {
                 .medicationsui
                 .view(&state.medicationtracker)
                 .map(Message::Medications),
-            Panel::Settings => state.uistate.settingsui.view().map(Message::Settings),
+            Panel::Settings => state
+                .uistate
+                .settingsui
+                .view(&state.settings)
+                .map(Message::Settings),
             Panel::Alarm => state
                 .uistate
                 .alarmui
