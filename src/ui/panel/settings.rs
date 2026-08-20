@@ -256,24 +256,76 @@ impl Settingsui {
         )
     }
 
-    pub fn update(&mut self, settings: &mut Settings, message: Message) {
+    pub fn update(&mut self, settings: &mut Settings, message: Message) -> bool {
         match message {
-            Message::OpenSection(section) => self.section = section,
-            Message::BackToMain => self.section = Section::Main,
-            Message::SelectLanguage(language) => settings.language = language,
+            Message::OpenSection(section) => {
+                self.section = section;
+                false
+            }
+            Message::BackToMain => {
+                self.section = Section::Main;
+                false
+            }
+            Message::SelectLanguage(language) => {
+                if settings.language == language {
+                    false
+                } else {
+                    settings.language = language;
+                    true
+                }
+            }
             Message::SelectTheme(theme) => {
+                if settings.theme == theme && settings.is_theme_changed {
+                    return false;
+                }
                 settings.theme = theme;
                 settings.is_theme_changed = true;
+                true
             }
             Message::FollowSystemTheme(follow_system) => {
-                settings.is_theme_changed = !follow_system;
+                let is_theme_changed = !follow_system;
+                if settings.is_theme_changed == is_theme_changed {
+                    false
+                } else {
+                    settings.is_theme_changed = is_theme_changed;
+                    true
+                }
             }
-            Message::ToggleSound(enabled) => settings.sound_enabled = enabled,
-            Message::SetVolume(volume) => settings.sound_volume = volume.clamp(0.0, 1.0),
+            Message::ToggleSound(enabled) => {
+                if settings.sound_enabled == enabled {
+                    false
+                } else {
+                    settings.sound_enabled = enabled;
+                    true
+                }
+            }
+            Message::SetVolume(volume) => {
+                let volume = volume.clamp(0.0, 1.0);
+                if settings.sound_volume == volume {
+                    false
+                } else {
+                    settings.sound_volume = volume;
+                    true
+                }
+            }
             // The native picker will be connected here when file integration is added.
-            Message::ChooseSoundFile => {}
-            Message::ToggleMinimizeToTray(enabled) => settings.is_minimize_to_tray = enabled,
-            Message::ToggleAutoStartup(enabled) => settings.is_auto_startup = enabled,
+            Message::ChooseSoundFile => false,
+            Message::ToggleMinimizeToTray(enabled) => {
+                if settings.is_minimize_to_tray == enabled {
+                    false
+                } else {
+                    settings.is_minimize_to_tray = enabled;
+                    true
+                }
+            }
+            Message::ToggleAutoStartup(enabled) => {
+                if settings.is_auto_startup == enabled {
+                    false
+                } else {
+                    settings.is_auto_startup = enabled;
+                    true
+                }
+            }
         }
     }
 }

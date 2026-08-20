@@ -51,6 +51,9 @@ fn new() -> (App, Task<Message>) {
     if let Some(tracker) = persistence::load_tracker() {
         app.medicationtracker = tracker;
     }
+    if let Some(settings) = persistence::load_settings() {
+        app.settings = settings;
+    }
     let old_date = app.medicationtracker.last_generation_date;
     check_new_day(&mut app.medicationtracker);
     if old_date != app.medicationtracker.last_generation_date {
@@ -78,6 +81,12 @@ fn new() -> (App, Task<Message>) {
 fn save(state: &App) {
     if let Err(e) = persistence::save_tracker(&state.medicationtracker) {
         eprintln!("Save failed: {e}");
+    }
+}
+
+fn save_settings(state: &App) {
+    if let Err(e) = persistence::save_settings(&state.settings) {
+        eprintln!("Settings save failed: {e}");
     }
 }
 
@@ -222,10 +231,13 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::Settings(settings) => {
-            state
+            let changed = state
                 .uistate
                 .settingsui
                 .update(&mut state.settings, settings);
+            if changed {
+                save_settings(state);
+            }
             Task::none()
         }
         Message::Time(msg) => {
