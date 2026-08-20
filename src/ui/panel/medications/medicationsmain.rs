@@ -95,7 +95,7 @@ impl Record {
 
             let info = column![
                 text(&med.name).size(20),
-                text(format!("{} mg", med.stock)).size(14),
+                text(format!("{} {}", med.stock, med.dose_type)).size(14),
             ]
             .spacing(4)
             .width(Fill);
