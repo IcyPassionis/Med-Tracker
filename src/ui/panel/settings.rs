@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use iced::widget::{
     Image, button, column, container, pick_list, row, scrollable, slider, text, toggler,
@@ -308,8 +308,26 @@ impl Settingsui {
                     true
                 }
             }
-            // The native picker will be connected here when file integration is added.
             Message::ChooseSoundFile => false,
+            Message::SoundFileSelected(path) => {
+                let Some(path) = path else {
+                    return false;
+                };
+                if !crate::audio::alarm::is_decodable_sound_file(&path) {
+                    eprintln!("Selected file is not a decodable sound: {}", path.display());
+                    return false;
+                }
+                let Some(path) = path.to_str() else {
+                    eprintln!("Selected sound path is not valid UTF-8: {}", path.display());
+                    return false;
+                };
+                if settings.alarm_sound_path == path {
+                    false
+                } else {
+                    settings.alarm_sound_path = path.to_string();
+                    true
+                }
+            }
             Message::ToggleMinimizeToTray(enabled) => {
                 if settings.is_minimize_to_tray == enabled {
                     false
@@ -446,6 +464,7 @@ pub enum Message {
     ToggleSound(bool),
     SetVolume(f32),
     ChooseSoundFile,
+    SoundFileSelected(Option<PathBuf>),
     ToggleMinimizeToTray(bool),
     ToggleAutoStartup(bool),
 }

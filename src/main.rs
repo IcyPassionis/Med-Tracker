@@ -236,6 +236,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
         Message::Settings(settings::Message::ChooseSoundFile) => Task::perform(
             async {
                 rfd::AsyncFileDialog::new()
+                    .add_filter("Supported audio", &["wav", "ogg"])
                     .pick_file()
                     .await
                     .map(|file| file.path().to_path_buf())
