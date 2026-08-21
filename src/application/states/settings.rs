@@ -22,7 +22,7 @@ impl Settings {
             sound_volume: 1.0,
             alarm_sound_path: "audio/alarm.wav".to_string(),
             is_auto_startup: false,
-            is_minimize_to_tray: false,
+            is_minimize_to_tray: true,
             is_24_hour_format: true,
         }
     }

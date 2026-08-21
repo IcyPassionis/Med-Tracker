@@ -135,6 +135,15 @@ mod tests {
     }
 
     #[test]
+    fn minimize_to_tray_defaults_to_enabled() {
+        let restored = serde_json::from_str::<PersistedSettings>(r#"{}"#)
+            .unwrap()
+            .into_runtime();
+        assert!(restored.is_minimize_to_tray);
+        assert!(Settings::new().is_minimize_to_tray);
+    }
+
+    #[test]
     fn missing_values_use_defaults_and_unknown_theme_falls_back() {
         let restored =
             serde_json::from_str::<PersistedSettings>(r#"{"theme":"Unknown","sound_volume":2.0}"#)

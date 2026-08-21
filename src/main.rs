@@ -28,11 +28,16 @@ fn main() {
         .title(view::title)
         .theme(view::theme)
         .subscription(|state| {
+            let tray_enabled = state.settings.is_minimize_to_tray;
             if crate::tray::tray::is_wayland() {
                 iced::Subscription::batch([
                     update_time(state),
                     iced::window::close_requests().map(Message::CloseRequested),
-                    crate::tray::wayland::wayland_tray_subscription(),
+                    if tray_enabled {
+                        crate::tray::wayland::wayland_tray_subscription()
+                    } else {
+                        iced::Subscription::none()
+                    },
                 ])
             } else {
                 iced::Subscription::batch([
@@ -60,7 +65,11 @@ fn new() -> (App, Task<Message>) {
     if old_date != app.medicationtracker.last_generation_date {
         save(&app);
     }
-    app.tray_icon = create_tray();
+    app.tray_icon = if app.settings.is_minimize_to_tray {
+        create_tray()
+    } else {
+        None
+    };
 
     let (main_id, open_task) = iced::window::open(iced::window::Settings {
         size: Size::new(1000.0, 640.0),
@@ -178,10 +187,13 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
         Message::CloseRequested(id) => {
             if Some(id) == state.popup_window_id {
                 state.popup_window_id = None;
-            } else {
+                iced::window::close(id)
+            } else if state.settings.is_minimize_to_tray {
                 state.window_id = None;
+                iced::window::close(id)
+            } else {
+                iced::exit()
             }
-            iced::window::close(id)
         }
         Message::TrayLeftClick => show_main_window(state),
         Message::TrayRightClick { x, y } => {
@@ -253,6 +265,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             let previous_sound_enabled = state.settings.sound_enabled;
             let previous_sound_volume = state.settings.sound_volume;
             let previous_alarm_sound_path = state.settings.alarm_sound_path.clone();
+            let previous_minimize_to_tray = state.settings.is_minimize_to_tray;
             let changed = state
                 .uistate
                 .settingsui
@@ -262,6 +275,20 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             }
             if changed {
                 save_settings(state);
+                if previous_minimize_to_tray != state.settings.is_minimize_to_tray {
+                    let close_popup = if let Some(popup_id) = state.popup_window_id.take() {
+                        iced::window::close(popup_id)
+                    } else {
+                        Task::none()
+                    };
+                    if state.settings.is_minimize_to_tray {
+                        state.tray_icon = create_tray();
+                    } else {
+                        state.tray_icon = None;
+                        crate::tray::wayland::request_tray_shutdown();
+                    }
+                    return close_popup;
+                }
                 if !state.settings.sound_enabled {
                     stop_alarm();
                 } else if state.uistate.alarmui.is_active()

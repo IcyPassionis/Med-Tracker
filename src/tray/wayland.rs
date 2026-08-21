@@ -62,22 +62,41 @@ pub fn wayland_tray_subscription() -> Subscription<Message> {
     Subscription::run(wayland_tray_stream)
 }
 
+static SHUTDOWN_TX: std::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>> =
+    std::sync::Mutex::new(None);
+
+/// Requests the current Wayland (SNI) tray icon to shut down and remove itself.
+pub fn request_tray_shutdown() {
+    if let Ok(tx) = SHUTDOWN_TX.lock() {
+        if let Some(tx) = tx.as_ref() {
+            let _ = tx.send(true);
+        }
+    }
+}
+
 fn wayland_tray_stream() -> impl iced::futures::Stream<Item = Message> {
     iced::stream::channel(16, async |mut output| {
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Message>();
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
+        let mut task_shutdown_rx = shutdown_rx.clone();
+        {
+            let mut guard = SHUTDOWN_TX.lock().expect("shutdown tx lock");
+            *guard = Some(shutdown_tx);
+        }
 
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => {
                 handle.spawn(async move {
                     let tray = WaylandTray { sender };
-                    let _handle = match tray.spawn().await {
+                    let mut handle = match tray.spawn().await {
                         Ok(h) => h,
                         Err(e) => {
                             eprintln!("[tray-wayland] Failed to spawn SNI tray: {e}");
                             return;
                         }
                     };
-                    std::future::pending::<()>().await;
+                    let _ = task_shutdown_rx.changed().await;
+                    let _ = handle.shutdown().await;
                 });
             }
             Err(e) => {
@@ -86,9 +105,21 @@ fn wayland_tray_stream() -> impl iced::futures::Stream<Item = Message> {
             }
         }
 
-        while let Some(msg) = receiver.recv().await {
-            if output.send(msg).await.is_err() {
-                break;
+        loop {
+            tokio::select! {
+                msg = receiver.recv() => match msg {
+                    Some(msg) => {
+                        if output.send(msg).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => break,
+                },
+                changed = async { shutdown_rx.changed().await } => {
+                    if changed.is_err() || *shutdown_rx.borrow() {
+                        break;
+                    }
+                }
             }
         }
     })
