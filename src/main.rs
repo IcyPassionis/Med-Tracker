@@ -21,7 +21,7 @@ use crate::update::loadpanel::load_panel;
 use crate::update::time_check::{check_medication_schedule, check_new_day, update_time};
 use application::panel::Panel;
 use chrono;
-use ui::panel::{alarm, home, medications};
+use ui::panel::{alarm, home, medications, settings};
 
 fn main() {
     ice::daemon(new, update, view::view)
@@ -150,8 +150,11 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 }
                 state.uistate.alarmui.add_alarming_record(record_id);
             }
-            if any_new {
-                play_alarm();
+            if any_new && state.settings.sound_enabled {
+                play_alarm(
+                    &state.settings.alarm_sound_path,
+                    state.settings.sound_volume,
+                );
             }
             if state.uistate.alarmui.is_active() && state.state.panel != Panel::Alarm {
                 state.state.switch_to_alarm();
@@ -230,13 +233,37 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             state.uistate.settingsui.set_section_to_main();
             Task::none()
         }
-        Message::Settings(settings) => {
+        Message::Settings(settings::Message::ChooseSoundFile) => Task::perform(
+            async {
+                rfd::AsyncFileDialog::new()
+                    .pick_file()
+                    .await
+                    .map(|file| file.path().to_path_buf())
+            },
+            |path| Message::Settings(settings::Message::SoundFileSelected(path)),
+        ),
+        Message::Settings(settings_message) => {
+            let previous_sound_enabled = state.settings.sound_enabled;
+            let previous_sound_volume = state.settings.sound_volume;
+            let previous_alarm_sound_path = state.settings.alarm_sound_path.clone();
             let changed = state
                 .uistate
                 .settingsui
-                .update(&mut state.settings, settings);
+                .update(&mut state.settings, settings_message);
             if changed {
                 save_settings(state);
+                if !state.settings.sound_enabled {
+                    stop_alarm();
+                } else if state.uistate.alarmui.is_active()
+                    && (previous_sound_enabled != state.settings.sound_enabled
+                        || previous_sound_volume != state.settings.sound_volume
+                        || previous_alarm_sound_path != state.settings.alarm_sound_path)
+                {
+                    play_alarm(
+                        &state.settings.alarm_sound_path,
+                        state.settings.sound_volume,
+                    );
+                }
             }
             Task::none()
         }
