@@ -545,9 +545,9 @@ impl MedicationAddPanel {
         ]
         .spacing(8);
         if let Some(err) = &self.schedule_error {
-            dose_field = dose_field.push(text(err.clone()).size(13).style(|_theme: &Theme| {
+            dose_field = dose_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
                 iced::widget::text::Style {
-                    color: Some(Color::from_rgb(0.85, 0.2, 0.2)),
+                    color: Some(theme.extended_palette().danger.base.color),
                 }
             }));
         }

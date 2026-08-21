@@ -17,7 +17,7 @@ pub fn category_button(theme: &Theme, status: Status) -> Style {
         background: Some(Background::Color(background)),
         text_color,
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 30.0.into(),
         },

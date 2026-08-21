@@ -7,12 +7,7 @@ use crate::ui::style::color::darken;
 
 pub fn navbar_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color: Color;
-    if !palette.is_dark {
-        text_color = Color::from_rgb8(20, 20, 20);
-    } else {
-        text_color = Color::from_rgb8(220, 220, 220);
-    }
+    let text_color = palette.background.base.text;
     match status {
         Status::Active => {
             navbar_button_background(darken(palette.background.base.color, 0.1), text_color)
@@ -44,12 +39,7 @@ fn bordered_button_size_radius(
     status: Status,
 ) -> Style {
     let palette = theme.extended_palette();
-    let text_color: Color;
-    if !palette.is_dark {
-        text_color = Color::from_rgb8(20, 20, 20);
-    } else {
-        text_color = Color::from_rgb8(220, 220, 220);
-    }
+    let text_color = palette.background.base.text;
     match status {
         Status::Active => bordered_button_color(
             border_radius_size,

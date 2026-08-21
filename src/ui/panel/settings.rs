@@ -114,7 +114,8 @@ impl Settingsui {
         .width(Length::Fixed(260.0));
         let gtk_button = button("Apply GTK Theme")
             .style(bordered_button)
-            .padding([10, 18]);
+            .padding([10, 18])
+            .on_press(Message::ApplyGtkTheme);
 
         self.detail_view(
             "Theme",
@@ -132,7 +133,7 @@ impl Settingsui {
                 ),
                 setting_row(
                     "GTK theme",
-                    "GTK theme support will be added later.".to_string(),
+                    "Read the current GTK theme colors and use them in Iced.".to_string(),
                     gtk_button.into(),
                 ),
             ]
@@ -290,6 +291,10 @@ impl Settingsui {
                     settings.is_theme_changed = is_theme_changed;
                     true
                 }
+            }
+            Message::ApplyGtkTheme => {
+                settings.is_theme_changed = false;
+                true
             }
             Message::ToggleSound(enabled) => {
                 if settings.sound_enabled == enabled {
@@ -461,6 +466,7 @@ pub enum Message {
     SelectLanguage(String),
     SelectTheme(Theme),
     FollowSystemTheme(bool),
+    ApplyGtkTheme,
     ToggleSound(bool),
     SetVolume(f32),
     ChooseSoundFile,

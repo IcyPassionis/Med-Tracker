@@ -7,7 +7,7 @@ pub fn alarm_panel_container(theme: &Theme) -> Style {
     Style {
         background: Some(Background::Color(palette.background.weak.color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: ice::border::Radius::from(45.0),
         },
@@ -25,7 +25,7 @@ pub fn medication_item_container(theme: &Theme) -> Style {
     Style {
         background: Some(Background::Color(palette.background.weak.color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: ice::border::Radius::from(35.0),
         },

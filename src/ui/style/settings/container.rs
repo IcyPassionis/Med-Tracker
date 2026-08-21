@@ -6,7 +6,7 @@ pub fn settings_surface(theme: &Theme) -> Style {
     Style {
         background: Some(Background::Color(palette.background.weak.color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 30.0.into(),
         },
@@ -25,7 +25,7 @@ pub fn setting_row(theme: &Theme) -> Style {
         background: Some(Background::Color(palette.background.strong.color)),
         text_color: Some(palette.background.strong.text),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 20.0.into(),
         },

@@ -19,7 +19,7 @@ pub fn medication_card(theme: &Theme) -> Style {
         background: Some(Background::Color(palette.background.weak.color)),
         text_color: Some(palette.background.base.text),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 30.0.into(),
         },
@@ -44,7 +44,7 @@ pub fn delete_dialog(theme: &Theme) -> Style {
     Style {
         background: Some(Background::Color(palette.background.base.color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 25.0.into(),
         },

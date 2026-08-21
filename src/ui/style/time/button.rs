@@ -4,30 +4,31 @@ use iced::{Background, Border, Color, Shadow, Theme, Vector};
 pub fn weekday_button(selected: bool) -> impl Fn(&Theme, Status) -> Style {
     move |theme: &Theme, status: Status| {
         let palette = theme.extended_palette();
-        let text_color = if !palette.is_dark {
-            Color::from_rgb8(20, 20, 20)
+        let (background_color, text_color) = if selected {
+            (
+                match status {
+                    Status::Active => palette.primary.strong.color,
+                    Status::Disabled => palette.primary.base.color,
+                    Status::Hovered => palette.primary.base.color,
+                    Status::Pressed => palette.primary.weak.color,
+                },
+                palette.primary.base.text,
+            )
         } else {
-            Color::from_rgb8(220, 220, 220)
-        };
-        let background_color = if selected {
-            match status {
-                Status::Active => palette.primary.strong.color,
-                Status::Disabled => palette.primary.base.color,
-                Status::Hovered => palette.primary.base.color,
-                Status::Pressed => palette.primary.weak.color,
-            }
-        } else {
-            match status {
-                Status::Active => palette.secondary.strong.color,
-                Status::Disabled => palette.secondary.base.color,
-                Status::Hovered => palette.secondary.base.color,
-                Status::Pressed => palette.secondary.weak.color,
-            }
+            (
+                match status {
+                    Status::Active => palette.secondary.strong.color,
+                    Status::Disabled => palette.secondary.base.color,
+                    Status::Hovered => palette.secondary.base.color,
+                    Status::Pressed => palette.secondary.weak.color,
+                },
+                palette.secondary.base.text,
+            )
         };
         Style {
             background: Some(Background::Color(background_color)),
             border: Border {
-                color: Color::BLACK,
+                color: palette.background.strong.color,
                 width: if selected { 2.0 } else { 1.0 },
                 radius: iced::border::Radius {
                     top_left: 60.0,
@@ -49,37 +50,41 @@ pub fn weekday_button(selected: bool) -> impl Fn(&Theme, Status) -> Style {
 pub fn calendar_button(selected: bool, is_today: bool) -> impl Fn(&Theme, Status) -> Style {
     move |theme: &Theme, status: Status| {
         let palette = theme.extended_palette();
-        let text_color = if !palette.is_dark {
-            Color::from_rgb8(20, 20, 20)
-        } else {
-            Color::from_rgb8(220, 220, 220)
-        };
-        let background_color = if selected {
-            match status {
-                Status::Active => palette.background.strong.color,
-                Status::Disabled => palette.background.base.color,
-                Status::Hovered => palette.background.base.color,
-                Status::Pressed => palette.background.weak.color,
-            }
+        let (background_color, text_color) = if selected {
+            (
+                match status {
+                    Status::Active => palette.background.strong.color,
+                    Status::Disabled => palette.background.base.color,
+                    Status::Hovered => palette.background.base.color,
+                    Status::Pressed => palette.background.weak.color,
+                },
+                palette.background.base.text,
+            )
         } else if is_today {
-            match status {
-                Status::Active => Color::from_rgb8(120, 160, 220),
-                Status::Disabled => Color::from_rgb8(100, 140, 200),
-                Status::Hovered => Color::from_rgb8(140, 180, 240),
-                Status::Pressed => Color::from_rgb8(100, 130, 190),
-            }
+            (
+                match status {
+                    Status::Active => palette.primary.strong.color,
+                    Status::Disabled => palette.primary.base.color,
+                    Status::Hovered => palette.primary.base.color,
+                    Status::Pressed => palette.primary.weak.color,
+                },
+                palette.primary.base.text,
+            )
         } else {
-            match status {
-                Status::Active => palette.secondary.strong.color,
-                Status::Disabled => palette.secondary.base.color,
-                Status::Hovered => palette.secondary.base.color,
-                Status::Pressed => palette.secondary.weak.color,
-            }
+            (
+                match status {
+                    Status::Active => palette.secondary.strong.color,
+                    Status::Disabled => palette.secondary.base.color,
+                    Status::Hovered => palette.secondary.base.color,
+                    Status::Pressed => palette.secondary.weak.color,
+                },
+                palette.secondary.base.text,
+            )
         };
         let border_color = if is_today && !selected {
-            Color::from_rgb8(60, 130, 240)
+            palette.primary.base.color
         } else {
-            Color::BLACK
+            palette.background.strong.color
         };
         let border_width = if is_today { 2.5 } else { 1.0 };
         Style {
@@ -106,11 +111,6 @@ pub fn calendar_button(selected: bool, is_today: bool) -> impl Fn(&Theme, Status
 }
 pub fn add_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color = if !palette.is_dark {
-        Color::from_rgb8(20, 20, 20)
-    } else {
-        Color::from_rgb8(220, 220, 220)
-    };
     let background_color = match status {
         Status::Active => palette.secondary.strong.color,
         Status::Disabled => palette.secondary.strong.color,
@@ -120,7 +120,7 @@ pub fn add_button(theme: &Theme, status: Status) -> Style {
     Style {
         background: Some(Background::Color(background_color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: iced::border::Radius {
                 top_left: 42.0,
@@ -129,7 +129,7 @@ pub fn add_button(theme: &Theme, status: Status) -> Style {
                 bottom_left: 42.0,
             },
         },
-        text_color,
+        text_color: palette.secondary.base.text,
         shadow: Shadow {
             color: Color::BLACK,
             offset: Vector { x: 0.01, y: 4.0 },
@@ -140,11 +140,6 @@ pub fn add_button(theme: &Theme, status: Status) -> Style {
 }
 pub fn overlay_close_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color = if !palette.is_dark {
-        Color::from_rgb8(20, 20, 20)
-    } else {
-        Color::from_rgb8(220, 220, 220)
-    };
     let background_color = match status {
         Status::Active => palette.secondary.strong.color,
         Status::Disabled => palette.secondary.strong.color,
@@ -154,7 +149,7 @@ pub fn overlay_close_button(theme: &Theme, status: Status) -> Style {
     Style {
         background: Some(Background::Color(background_color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: iced::border::Radius {
                 top_left: 15.0,
@@ -163,17 +158,12 @@ pub fn overlay_close_button(theme: &Theme, status: Status) -> Style {
                 bottom_left: 15.0,
             },
         },
-        text_color,
+        text_color: palette.secondary.base.text,
         ..Default::default()
     }
 }
 pub fn record_action_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color = if !palette.is_dark {
-        Color::from_rgb8(20, 20, 20)
-    } else {
-        Color::from_rgb8(220, 220, 220)
-    };
     let background_color = match status {
         Status::Active => palette.secondary.strong.color,
         Status::Disabled => palette.secondary.strong.color,
@@ -183,7 +173,7 @@ pub fn record_action_button(theme: &Theme, status: Status) -> Style {
     Style {
         background: Some(Background::Color(background_color)),
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: iced::border::Radius {
                 top_left: 10.0,
@@ -192,7 +182,7 @@ pub fn record_action_button(theme: &Theme, status: Status) -> Style {
                 bottom_left: 10.0,
             },
         },
-        text_color,
+        text_color: palette.secondary.base.text,
         shadow: Shadow {
             color: Color::BLACK,
             offset: Vector { x: 0.01, y: 4.0 },

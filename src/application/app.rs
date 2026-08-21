@@ -7,6 +7,7 @@ pub struct App {
     pub uistate: UIState,
     pub state: State,
     pub settings: Settings,
+    pub system_theme: iced::Theme,
     pub medicationtracker: MedicationTracker,
     pub window_id: Option<iced::window::Id>,
     pub popup_window_id: Option<iced::window::Id>,
@@ -17,6 +18,7 @@ impl App {
         App {
             state: State::new(),
             settings: Settings::new(),
+            system_theme: iced::Theme::CatppuccinMocha,
             uistate: UIState::new(),
             medicationtracker: MedicationTracker::new(),
             window_id: None,
@@ -24,12 +26,17 @@ impl App {
             tray_icon: None,
         }
     }
+
+    pub fn refresh_system_theme(&mut self) {
+        self.system_theme = crate::ui::theme::system();
+    }
 }
 impl Default for App {
     fn default() -> Self {
         App {
             state: State::new(),
             settings: Settings::new(),
+            system_theme: iced::Theme::CatppuccinMocha,
             uistate: UIState::new(),
             medicationtracker: MedicationTracker::new(),
             window_id: None,

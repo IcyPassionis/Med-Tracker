@@ -54,6 +54,7 @@ fn new() -> (App, Task<Message>) {
     if let Some(settings) = persistence::load_settings() {
         app.settings = settings;
     }
+    app.refresh_system_theme();
     let old_date = app.medicationtracker.last_generation_date;
     check_new_day(&mut app.medicationtracker);
     if old_date != app.medicationtracker.last_generation_date {
@@ -244,6 +245,11 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             |path| Message::Settings(settings::Message::SoundFileSelected(path)),
         ),
         Message::Settings(settings_message) => {
+            let refresh_system_theme = matches!(
+                &settings_message,
+                settings::Message::ApplyGtkTheme
+                    | settings::Message::FollowSystemTheme(true)
+            );
             let previous_sound_enabled = state.settings.sound_enabled;
             let previous_sound_volume = state.settings.sound_volume;
             let previous_alarm_sound_path = state.settings.alarm_sound_path.clone();
@@ -251,6 +257,9 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 .uistate
                 .settingsui
                 .update(&mut state.settings, settings_message);
+            if refresh_system_theme {
+                state.refresh_system_theme();
+            }
             if changed {
                 save_settings(state);
                 if !state.settings.sound_enabled {

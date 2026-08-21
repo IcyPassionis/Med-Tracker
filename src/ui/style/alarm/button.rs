@@ -3,11 +3,7 @@ use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
 pub fn alarm_action_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color = if palette.is_dark {
-        Color::from_rgb8(220, 220, 220)
-    } else {
-        Color::from_rgb8(20, 20, 20)
-    };
+    let text_color = palette.background.base.text;
     let background_color = match status {
         Status::Active | Status::Disabled => palette.secondary.strong.color,
         Status::Hovered => palette.secondary.base.color,
@@ -18,7 +14,7 @@ pub fn alarm_action_button(theme: &Theme, status: Status) -> Style {
         background: Some(Background::Color(background_color)),
         text_color,
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: iced::border::Radius::from(45.0),
         },
@@ -33,11 +29,7 @@ pub fn alarm_action_button(theme: &Theme, status: Status) -> Style {
 
 pub fn alarm_take_button(theme: &Theme, status: Status) -> Style {
     let palette = theme.extended_palette();
-    let text_color = if palette.is_dark {
-        Color::from_rgb8(220, 220, 220)
-    } else {
-        Color::from_rgb8(20, 20, 20)
-    };
+    let text_color = palette.background.base.text;
     let background_color = match status {
         Status::Active | Status::Disabled => palette.success.strong.color,
         Status::Hovered => palette.success.base.color,
@@ -48,7 +40,7 @@ pub fn alarm_take_button(theme: &Theme, status: Status) -> Style {
         background: Some(Background::Color(background_color)),
         text_color,
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: iced::border::Radius::from(45.0),
         },

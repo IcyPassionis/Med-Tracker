@@ -19,13 +19,9 @@ pub fn button(percentage: u8) -> impl Fn(&Theme, Status) -> Style {
         };
         Style {
             background: Some(Background::Color(background)),
-            text_color: if palette.is_dark {
-                Color::WHITE
-            } else {
-                Color::from_rgb8(20, 20, 20)
-            },
+            text_color: palette.background.base.text,
             border: Border {
-                color: Color::BLACK,
+                color: palette.background.strong.color,
                 width: 1.0,
                 radius: 12.0.into(),
             },
@@ -49,7 +45,7 @@ pub fn navigation_button(theme: &Theme, status: Status) -> Style {
         })),
         text_color: palette.background.base.text,
         border: Border {
-            color: Color::BLACK,
+            color: palette.background.strong.color,
             width: 1.0,
             radius: 14.0.into(),
         },
