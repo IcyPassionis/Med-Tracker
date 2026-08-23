@@ -194,7 +194,17 @@ impl TimeUI {
                         OccurrenceStatus::Skipped { reason: None } => String::from("Skipped"),
                         OccurrenceStatus::Skipped { reason: Some(r) } => r.clone(),
                         OccurrenceStatus::Pending | OccurrenceStatus::Missed => {
-                            med.stock.to_string()
+                            let schedule = med
+                                .schedules
+                                .iter()
+                                .find(|s| s.id == record.schedule_id);
+                            let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
+                            match tracker.days_left(&med.id) {
+                                Some(days) => {
+                                    format!("{} {} · {} days left", dose, med.dose_type, days)
+                                }
+                                None => format!("{} {}", dose, med.dose_type),
+                            }
                         }
                     };
                     let medication_info =
