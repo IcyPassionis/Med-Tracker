@@ -93,12 +93,16 @@ impl Record {
             .center_y(52)
             .style(med_container::pill_icon_container);
 
-            let info = column![
+            let mut info = column![
                 text(&med.name).size(20),
                 text(format!("{} {}", med.stock, med.dose_type)).size(14),
             ]
             .spacing(4)
             .width(Fill);
+
+            if let Some(days) = tracker.days_left(&med.id) {
+                info = info.push(text(format!("{} days left", days)).size(14));
+            }
 
             let refill_btn = button(button_with_icon!("icons/medicine-syrup.png", 20, 0))
                 .style(style::time::button::overlay_close_button)

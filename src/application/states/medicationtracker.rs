@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 
 use crate::application::medication::{
     medication::Medication, occurrencestatus::OccurrenceStatus, record::Record,
@@ -156,5 +156,34 @@ impl MedicationTracker {
         if let Some(med) = self.medications.iter_mut().find(|m| m.id == medication_id) {
             med.stock += pills;
         }
+    }
+
+    pub fn days_left(&self, medication_id: &str) -> Option<u32> {
+        const PROJECTION_DAYS: f32 = 28.0;
+        let med = self.medications.iter().find(|m| m.id == medication_id)?;
+        if med.stock <= 0.0 || med.pill_dose <= 0.0 {
+            return None;
+        }
+        let now = Utc::now();
+        let horizon = now + Duration::days(PROJECTION_DAYS as i64);
+        let mut total_pills = 0.0;
+        for record in &self.records {
+            if record.medication_id != medication_id
+                || record.time < now
+                || record.time > horizon
+                || !matches!(record.occurrence_status, OccurrenceStatus::Pending)
+            {
+                continue;
+            }
+            let Some(schedule) = med.schedules.iter().find(|s| s.id == record.schedule_id) else {
+                continue;
+            };
+            total_pills += schedule.dose / med.pill_dose;
+        }
+        let daily_usage = total_pills / PROJECTION_DAYS;
+        if daily_usage <= 0.0 {
+            return None;
+        }
+        Some((med.stock / daily_usage).round() as u32)
     }
 }
