@@ -61,20 +61,29 @@ impl AlarmUI {
         tracker: &'a MedicationTracker,
         record: &'a Record,
     ) -> Element<'a, Message> {
-        let medication = tracker
-            .medications
-            .iter()
-            .find(|m| m.id == record.medication_id);
-        let med_name = medication.map(|m| m.name.as_str()).unwrap_or("Unknown");
-        let schedule =
-            medication.and_then(|med| med.schedules.iter().find(|s| s.id == record.schedule_id));
-        let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
+        let (med_name, dose_text, record_label) = if let Some(data) = &record.one_time {
+            (
+                data.name.as_str(),
+                format!("{} {}", data.dose, data.dose_type),
+                "One-Time Record",
+            )
+        } else {
+            let medication = tracker
+                .medications
+                .iter()
+                .find(|m| m.id == record.medication_id);
+            let med_name = medication.map(|m| m.name.as_str()).unwrap_or("Unknown");
+            let schedule = medication
+                .and_then(|med| med.schedules.iter().find(|s| s.id == record.schedule_id));
+            let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
+            (med_name, format!("{} mg", dose), "Medication")
+        };
         let time = record
             .time
             .with_timezone(&Local)
             .format("%H:%M")
             .to_string();
-        let schedule_time_text = format!("{} - Medication", time);
+        let schedule_time_text = format!("{} - {}", time, record_label);
         column![
             container(
                 text(schedule_time_text)
@@ -93,12 +102,9 @@ impl AlarmUI {
                 left: 0.0
             })
             .center_x(Length::Fill),
-            column![
-                text(med_name).size(32),
-                text(format!("{} mg", dose)).size(16),
-            ]
-            .spacing(20)
-            .align_x(ice::alignment::Horizontal::Center),
+            column![text(med_name).size(32), text(dose_text).size(16),]
+                .spacing(20)
+                .align_x(ice::alignment::Horizontal::Center),
             container("").height(Length::Fill),
             column![
                 button(
@@ -161,22 +167,25 @@ impl AlarmUI {
         let header_text = format!("{} Medications", count);
         let mut records_list = column![].spacing(20);
         for record in records {
-            let medication = tracker
-                .medications
-                .iter()
-                .find(|m| m.id == record.medication_id);
-
-            let med_name = medication.map(|m| m.name.as_str()).unwrap_or("Unknown");
-            let schedule = medication
-                .and_then(|med| med.schedules.iter().find(|s| s.id == record.schedule_id));
-            let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
+            let (med_name, dose_text) = if let Some(data) = &record.one_time {
+                (
+                    data.name.as_str(),
+                    format!("{} {}", data.dose, data.dose_type),
+                )
+            } else {
+                let medication = tracker
+                    .medications
+                    .iter()
+                    .find(|m| m.id == record.medication_id);
+                let med_name = medication.map(|m| m.name.as_str()).unwrap_or("Unknown");
+                let schedule = medication
+                    .and_then(|med| med.schedules.iter().find(|s| s.id == record.schedule_id));
+                let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
+                (med_name, format!("{} mg", dose))
+            };
             let medication_container = container(
                 row![
-                    column![
-                        text(med_name).size(22),
-                        text(format!("{} mg", dose)).size(16),
-                    ]
-                    .spacing(10),
+                    column![text(med_name).size(22), text(dose_text).size(16),].spacing(10),
                     Space::new().width(Length::Fill),
                     row![
                         button(

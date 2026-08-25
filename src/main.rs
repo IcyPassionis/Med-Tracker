@@ -149,6 +149,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                             .iter()
                             .find(|m| m.id == record.medication_id)
                             .map(|m| m.name.as_str())
+                            .or_else(|| record.one_time.as_ref().map(|data| data.name.as_str()))
                             .unwrap_or("Unknown");
                         let time_str = record
                             .time
@@ -305,31 +306,41 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::Time(msg) => {
+            let deleted_record_id = match &msg {
+                home::time::Message::DeleteRecord(id) => Some(id.clone()),
+                _ => None,
+            };
             let should_save = matches!(
                 msg,
                 home::time::Message::MedicationAdd(_)
                     | home::time::Message::MarkSkipped(_)
+                    | home::time::Message::MarkTakenToggle(_)
+                    | home::time::Message::DeleteRecord(_)
                     | home::time::Message::Taken(
-                        home::takenpanel::Message::TakeNow
-                            | home::takenpanel::Message::Confirm
+                        home::takenpanel::Message::TakeNow | home::takenpanel::Message::Confirm
                     )
-                    | home::time::Message::Reschedule(
-                        home::reschedulepanel::Message::Confirm
-                    )
+                    | home::time::Message::Reschedule(home::reschedulepanel::Message::Confirm)
             );
             let should_generate = matches!(
                 msg,
                 home::time::Message::MedicationAdd(home::medicationaddpanel::Message::Done)
             );
-            let task = state
+            let (task, one_time_created) = state
                 .uistate
                 .timeui
-                .update(&mut state.medicationtracker, msg)
-                .map(Message::Time);
+                .update(&mut state.medicationtracker, msg);
+            let task = task.map(Message::Time);
+            if let Some(record_id) = deleted_record_id {
+                state
+                    .uistate
+                    .alarmui
+                    .alarming_records
+                    .retain(|id| id != &record_id);
+            }
             if should_generate {
                 generate_future_records(&mut state.medicationtracker);
             }
-            if should_save {
+            if should_save || one_time_created {
                 save(state);
             }
             task

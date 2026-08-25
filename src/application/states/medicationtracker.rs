@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 
 use crate::application::medication::{
-    medication::Medication, occurrencestatus::OccurrenceStatus, record::Record,
+    dosetype::DoseType, medication::Medication, occurrencestatus::OccurrenceStatus, record::Record,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,11 +29,40 @@ impl MedicationTracker {
         }
     }
 
+    pub fn insert_one_time_record(
+        &mut self,
+        name: String,
+        dose: f32,
+        dose_type: DoseType,
+        time: DateTime<Utc>,
+    ) -> String {
+        let record = Record::new_one_time(name, dose, dose_type, time);
+        let record_id = record.id.clone();
+        self.records.push(record);
+        record_id
+    }
+
+    pub fn delete_one_time_record(&mut self, record_id: &str) -> bool {
+        let Some(index) = self
+            .records
+            .iter()
+            .position(|record| record.id == record_id && record.is_one_time())
+        else {
+            return false;
+        };
+
+        self.records.remove(index);
+        true
+    }
+
     fn deduct_stock(&mut self, record_id: &str) {
         let record = match self.records.iter().position(|r| r.id == record_id) {
             Some(idx) => idx,
             None => return,
         };
+        if self.records[record].is_one_time() {
+            return;
+        }
         let medication_id = self.records[record].medication_id.clone();
         let schedule_id = self.records[record].schedule_id.clone();
         let medication = match self.medications.iter().position(|m| m.id == medication_id) {
@@ -63,6 +92,9 @@ impl MedicationTracker {
             Some(idx) => idx,
             None => return,
         };
+        if self.records[record].is_one_time() {
+            return;
+        }
         let pills_deducted = self.records[record].pills_deducted;
         if pills_deducted <= 0.0 {
             return;
@@ -133,6 +165,9 @@ impl MedicationTracker {
     }
     pub fn mark_as_missed(&mut self, record_id: &str) {
         if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
+            if record.is_one_time() {
+                return;
+            }
             record.occurrence_status = OccurrenceStatus::Missed;
         }
     }
@@ -168,7 +203,8 @@ impl MedicationTracker {
         let horizon = now + Duration::days(PROJECTION_DAYS as i64);
         let mut total_pills = 0.0;
         for record in &self.records {
-            if record.medication_id != medication_id
+            if record.is_one_time()
+                || record.medication_id != medication_id
                 || record.time < now
                 || record.time > horizon
                 || !matches!(record.occurrence_status, OccurrenceStatus::Pending)
@@ -185,5 +221,91 @@ impl MedicationTracker {
             return None;
         }
         Some((med.stock / daily_usage).round() as u32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::medication::dosetype::DoseType;
+    use chrono::Utc;
+
+    #[test]
+    fn one_time_record_does_not_change_stock_or_become_missed() {
+        let mut tracker = MedicationTracker::new();
+        tracker
+            .medications
+            .push(Medication::new("Regular".into(), 10.0));
+        let record_id =
+            tracker.insert_one_time_record("Extra dose".into(), 4.0, DoseType::Unit, Utc::now());
+
+        tracker.mark_as_taken(&record_id);
+        let record = tracker.records.iter().find(|r| r.id == record_id).unwrap();
+        assert!(matches!(
+            record.occurrence_status,
+            OccurrenceStatus::Taken { .. }
+        ));
+        assert_eq!(record.pills_deducted, 0.0);
+        assert_eq!(tracker.medications[0].stock, 10.0);
+
+        tracker.mark_as_taken(&record_id);
+        tracker.mark_as_missed(&record_id);
+        let record = tracker.records.iter().find(|r| r.id == record_id).unwrap();
+        assert!(matches!(
+            record.occurrence_status,
+            OccurrenceStatus::Pending
+        ));
+    }
+
+    #[test]
+    fn deleting_one_time_record_removes_only_that_record() {
+        let mut tracker = MedicationTracker::new();
+        let first = tracker.insert_one_time_record("First".into(), 1.0, DoseType::Mg, Utc::now());
+        let second = tracker.insert_one_time_record("Second".into(), 2.0, DoseType::Mg, Utc::now());
+
+        assert!(tracker.delete_one_time_record(&first));
+        assert!(!tracker.records.iter().any(|r| r.id == first));
+        assert!(tracker.records.iter().any(|r| r.id == second));
+        assert!(!tracker.delete_one_time_record(&first));
+    }
+
+    #[test]
+    fn one_time_delete_path_cannot_remove_regular_records() {
+        let mut tracker = MedicationTracker::new();
+        let record = Record::new("medication-id".into(), "schedule-id".into(), Utc::now());
+        let record_id = record.id.clone();
+        tracker.records.push(record);
+
+        assert!(!tracker.delete_one_time_record(&record_id));
+        assert!(tracker.records.iter().any(|r| r.id == record_id));
+    }
+
+    #[test]
+    fn one_time_record_is_ignored_by_days_left_projection() {
+        let mut tracker = MedicationTracker::new();
+        let mut medication = Medication::new("Regular".into(), 10.0);
+        let mut schedule = crate::application::medication::schedule::Schedule::new(
+            [12, 0],
+            Some(crate::application::medication::periodtype::PeriodType::Daily),
+            1,
+            1.0,
+        );
+        schedule.id = "schedule-id".into();
+        medication.schedules.push(schedule);
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+        tracker.records.push(Record::new(
+            medication_id.clone(),
+            "schedule-id".into(),
+            Utc::now() + Duration::hours(1),
+        ));
+        tracker.insert_one_time_record(
+            "Large one-time dose".into(),
+            100.0,
+            DoseType::Mg,
+            Utc::now() + Duration::hours(1),
+        );
+
+        assert_eq!(tracker.days_left(&medication_id), Some(280));
     }
 }

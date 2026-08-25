@@ -1,22 +1,26 @@
+use crate::application::medication::dosetype::DoseType;
 use crate::application::medication::occurrencestatus::OccurrenceStatus;
 use crate::application::medication::record::Record;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::{self, button_with_icon};
 use crate::ui::style;
+use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::{record_status_container, schedule_container};
 use chrono::{Datelike, Duration, Local, NaiveDate, Timelike};
 use iced::Length::{Fill, FillPortion, Shrink};
-use iced::widget::{Image, Id, button, column, container, row, scrollable, stack, text};
 use iced::widget::operation;
-use iced::{ContentFit, Element, Padding, alignment, Task};
+use iced::widget::{Id, Image, button, column, container, row, scrollable, stack, text};
+use iced::{ContentFit, Element, Padding, Task, alignment};
 
 pub struct TimeUI {
     pub selected_date: NaiveDate,
     medication_panel: super::medicationaddpanel::MedicationAddPanel,
+    one_time_panel: super::onetimepanel::OneTimeRecordPanel,
     reschedule_panel: super::reschedulepanel::ReschedulePanel,
     taken_panel: super::takenpanel::TakenPanel,
     calendar_scroll_id: Id,
     pub needs_scroll_to_today: bool,
+    add_choice_open: bool,
 }
 
 impl TimeUI {
@@ -24,10 +28,12 @@ impl TimeUI {
         Self {
             selected_date: Local::now().date_naive(),
             medication_panel: super::medicationaddpanel::MedicationAddPanel::new(),
+            one_time_panel: super::onetimepanel::OneTimeRecordPanel::new(),
             reschedule_panel: super::reschedulepanel::ReschedulePanel::new(),
             taken_panel: super::takenpanel::TakenPanel::new(),
             calendar_scroll_id: Id::unique(),
             needs_scroll_to_today: true,
+            add_choice_open: false,
         }
     }
 
@@ -45,6 +51,25 @@ impl TimeUI {
                 .into()
         } else {
             main.into()
+        };
+
+        let base: Element<Message> =
+            if let Some(overlay) = self.one_time_panel.view(self.selected_date) {
+                stack![base, overlay.map(Message::OneTimeRecord)]
+                    .width(Fill)
+                    .height(Fill)
+                    .into()
+            } else {
+                base
+            };
+
+        let base: Element<Message> = if self.add_choice_open {
+            stack![base, self.add_choice_overlay()]
+                .width(Fill)
+                .height(Fill)
+                .into()
+        } else {
+            base
         };
 
         let base: Element<Message> = if let Some(overlay) = self.reschedule_panel.view() {
@@ -66,8 +91,13 @@ impl TimeUI {
         }
     }
 
-    pub fn update(&mut self, state: &mut MedicationTracker, message: Message) -> Task<Message> {
-        match message {
+    pub fn update(
+        &mut self,
+        state: &mut MedicationTracker,
+        message: Message,
+    ) -> (Task<Message>, bool) {
+        let mut one_time_created = false;
+        let task = match message {
             Message::SelectDay(date) => {
                 self.selected_date = date;
                 println!("Current TimeUI Selected Date: {}", self.selected_date);
@@ -75,6 +105,37 @@ impl TimeUI {
             }
             Message::MedicationAdd(msg) => {
                 self.medication_panel.update(state, msg);
+                Task::none()
+            }
+            Message::OpenAddChoice => {
+                self.add_choice_open = true;
+                Task::none()
+            }
+            Message::CloseAddChoice => {
+                self.add_choice_open = false;
+                Task::none()
+            }
+            Message::OpenRegularMedication => {
+                self.add_choice_open = false;
+                self.medication_panel
+                    .update(state, super::medicationaddpanel::Message::Open);
+                Task::none()
+            }
+            Message::OpenOneTimeRecord => {
+                self.add_choice_open = false;
+                self.one_time_panel.update(
+                    state,
+                    self.selected_date,
+                    super::onetimepanel::Message::Open,
+                );
+                Task::none()
+            }
+            Message::OneTimeRecord(msg) => {
+                one_time_created = self.one_time_panel.update(state, self.selected_date, msg);
+                Task::none()
+            }
+            Message::DeleteRecord(id) => {
+                state.delete_one_time_record(&id);
                 Task::none()
             }
             Message::MarkSkipped(id) => {
@@ -99,26 +160,28 @@ impl TimeUI {
                 let relative_x = 30.0 / 61.0;
                 operation::snap_to(
                     self.calendar_scroll_id.clone(),
-                    scrollable::RelativeOffset { x: Some(relative_x), y: Some(0.0) },
+                    scrollable::RelativeOffset {
+                        x: Some(relative_x),
+                        y: Some(0.0),
+                    },
                 )
             }
-            Message::ScrollCalendarLeft => {
-                operation::scroll_by(
-                    self.calendar_scroll_id.clone(),
-                    scrollable::AbsoluteOffset { x: -400.0, y: 0.0 },
-                )
-            }
-            Message::ScrollCalendarRight => {
-                operation::scroll_by(
-                    self.calendar_scroll_id.clone(),
-                    scrollable::AbsoluteOffset { x: 400.0, y: 0.0 },
-                )
-            }
-        }
+            Message::ScrollCalendarLeft => operation::scroll_by(
+                self.calendar_scroll_id.clone(),
+                scrollable::AbsoluteOffset { x: -400.0, y: 0.0 },
+            ),
+            Message::ScrollCalendarRight => operation::scroll_by(
+                self.calendar_scroll_id.clone(),
+                scrollable::AbsoluteOffset { x: 400.0, y: 0.0 },
+            ),
+        };
+        (task, one_time_created)
     }
 
     pub fn set_section_to_main(&mut self) {
         self.medication_panel.close();
+        self.one_time_panel.close();
+        self.add_choice_open = false;
     }
 
     pub fn select_date(&mut self, date: NaiveDate) {
@@ -156,92 +219,98 @@ impl TimeUI {
 
             let mut medications_list = column![].spacing(10).padding([0, 20]);
             for record in records {
-                if let Some(med) = tracker
-                    .medications
-                    .iter()
-                    .find(|med| med.id == record.medication_id)
-                {
-                    let status_icon: Element<'a, Message> = match &record.occurrence_status {
-                        OccurrenceStatus::Taken { .. } => Image::new("icons/check.png")
+                let Some((name, dose, dose_type)) = self.record_details(tracker, record) else {
+                    continue;
+                };
+                let is_one_time = record.is_one_time();
+                let status_icon: Element<'a, Message> = match &record.occurrence_status {
+                    OccurrenceStatus::Taken { .. } => Image::new("icons/check.png")
+                        .content_fit(ContentFit::Cover)
+                        .width(42)
+                        .height(42)
+                        .into(),
+                    OccurrenceStatus::Skipped { .. } | OccurrenceStatus::Missed => {
+                        Image::new("icons/cross.png")
                             .content_fit(ContentFit::Cover)
                             .width(42)
                             .height(42)
-                            .into(),
-                        OccurrenceStatus::Skipped { .. } | OccurrenceStatus::Missed => {
-                            Image::new("icons/cross.png")
-                                .content_fit(ContentFit::Cover)
-                                .width(42)
-                                .height(42)
-                                .into()
+                            .into()
+                    }
+                    OccurrenceStatus::Pending => column![].width(42).height(42).into(),
+                };
+                let status_container = container(status_icon).style(record_status_container);
+                let status_text = match &record.occurrence_status {
+                    OccurrenceStatus::Taken { taken_at } => {
+                        let local_time = taken_at.with_timezone(&Local);
+                        let record_date = record.time.with_timezone(&Local).date_naive();
+                        if local_time.date_naive() == record_date {
+                            format!(
+                                "Taken at {:02}:{:02}",
+                                local_time.hour(),
+                                local_time.minute()
+                            )
+                        } else {
+                            format!("Taken at {}", local_time.format("%d-%m-%Y %H:%M"))
                         }
-                        OccurrenceStatus::Pending => column![].width(42).height(42).into(),
-                    };
-                    let status_container = container(status_icon).style(record_status_container);
-                    let status_text = match &record.occurrence_status {
-                        OccurrenceStatus::Taken { taken_at } => {
-                            let local_time = taken_at.with_timezone(&Local);
-                            let record_date = record.time.with_timezone(&Local).date_naive();
-                            if local_time.date_naive() == record_date {
-                                format!(
-                                    "Taken at {:02}:{:02}",
-                                    local_time.hour(),
-                                    local_time.minute()
-                                )
-                            } else {
-                                format!("Taken at {}", local_time.format("%d-%m-%Y %H:%M"))
-                            }
-                        }
-                        OccurrenceStatus::Skipped { reason: None } => String::from("Skipped"),
-                        OccurrenceStatus::Skipped { reason: Some(r) } => r.clone(),
-                        OccurrenceStatus::Pending | OccurrenceStatus::Missed => {
-                            let schedule = med
-                                .schedules
-                                .iter()
-                                .find(|s| s.id == record.schedule_id);
-                            let dose = schedule.map(|s| s.dose).unwrap_or(0.0);
-                            match tracker.days_left(&med.id) {
+                    }
+                    OccurrenceStatus::Skipped { reason: None } => String::from("Skipped"),
+                    OccurrenceStatus::Skipped { reason: Some(r) } => r.clone(),
+                    OccurrenceStatus::Pending | OccurrenceStatus::Missed => {
+                        if is_one_time {
+                            format!("{} {}", dose, dose_type)
+                        } else {
+                            match tracker.days_left(&record.medication_id) {
                                 Some(days) => {
-                                    format!("{} {} · {} days left", dose, med.dose_type, days)
+                                    format!("{} {} · {} days left", dose, dose_type, days)
                                 }
-                                None => format!("{} {}", dose, med.dose_type),
+                                None => format!("{} {}", dose, dose_type),
                             }
                         }
-                    };
-                    let medication_info =
-                        column![text(&med.name).size(22), text(status_text).size(16)]
-                            .spacing(5)
-                            .width(Fill);
-                    let action_buttons = row![
-                        button(button_with_icon!("icons/check.png", 32, 10))
-                            .style(style::time::button::record_action_button)
-                            .padding(10)
-                            .on_press(if matches!(record.occurrence_status, OccurrenceStatus::Taken { .. }) {
+                    }
+                };
+                let medication_info = column![text(name).size(22), text(status_text).size(16)]
+                    .spacing(5)
+                    .width(Fill);
+                let second_action: Element<'a, Message> = if is_one_time {
+                    button(button_with_icon!("icons/trash.png", 32, 10))
+                        .style(style::time::button::record_action_button)
+                        .padding(10)
+                        .on_press(Message::DeleteRecord(record.id.clone()))
+                        .into()
+                } else {
+                    button(button_with_icon!("icons/cross.png", 32, 10))
+                        .style(style::time::button::record_action_button)
+                        .padding(10)
+                        .on_press(Message::MarkSkipped(record.id.clone()))
+                        .into()
+                };
+                let action_buttons = row![
+                    button(button_with_icon!("icons/check.png", 32, 10))
+                        .style(style::time::button::record_action_button)
+                        .padding(10)
+                        .on_press(
+                            if matches!(record.occurrence_status, OccurrenceStatus::Taken { .. }) {
                                 Message::MarkTakenToggle(record.id.clone())
                             } else {
-                                Message::Taken(
-                                    super::takenpanel::Message::Open(record.id.clone())
-                                )
-                            }),
-                        button(button_with_icon!("icons/cross.png", 32, 10))
-                            .style(style::time::button::record_action_button)
-                            .padding(10)
-                            .on_press(Message::MarkSkipped(record.id.clone())),
-                        button(button_with_icon!("icons/clock.png", 32, 10))
-                            .style(style::time::button::record_action_button)
-                            .padding(10)
-                            .on_press(Message::Reschedule(
-                                super::reschedulepanel::Message::Open(record.id.clone())
-                            )),
-                    ]
-                    .spacing(30)
-                    .align_y(alignment::Vertical::Center);
+                                Message::Taken(super::takenpanel::Message::Open(record.id.clone()))
+                            }
+                        ),
+                    second_action,
+                    button(button_with_icon!("icons/clock.png", 32, 10))
+                        .style(style::time::button::record_action_button)
+                        .padding(10)
+                        .on_press(Message::Reschedule(super::reschedulepanel::Message::Open(
+                            record.id.clone()
+                        ))),
+                ]
+                .spacing(30)
+                .align_y(alignment::Vertical::Center);
 
-                    let medication_row = row![status_container, medication_info, action_buttons]
-                        .align_y(alignment::Vertical::Center)
-                        .spacing(20);
+                let medication_row = row![status_container, medication_info, action_buttons]
+                    .align_y(alignment::Vertical::Center)
+                    .spacing(20);
 
-                    medications_list = medications_list.push(medication_row);
-                }
+                medications_list = medications_list.push(medication_row);
             }
             schedule_container_column = schedule_container_column
                 .push(medications_list)
@@ -257,9 +326,7 @@ impl TimeUI {
             button(macros::button_with_icon_text!("Add Med", "icons/plus.png"))
                 .style(style::time::button::add_button)
                 .padding([20, 100])
-                .on_press(Message::MedicationAdd(
-                    super::medicationaddpanel::Message::Open,
-                )),
+                .on_press(Message::OpenAddChoice),
         )
         .center_x(Fill)
         .height(Shrink)
@@ -267,7 +334,64 @@ impl TimeUI {
         .into()
     }
 
-fn calendar_part<'a>(&self) -> Element<'a, Message> {
+    fn record_details<'a>(
+        &self,
+        tracker: &'a MedicationTracker,
+        record: &'a Record,
+    ) -> Option<(&'a str, f32, DoseType)> {
+        if let Some(one_time) = &record.one_time {
+            return Some((&one_time.name, one_time.dose, one_time.dose_type));
+        }
+
+        let medication = tracker
+            .medications
+            .iter()
+            .find(|medication| medication.id == record.medication_id)?;
+        let dose = medication
+            .schedules
+            .iter()
+            .find(|schedule| schedule.id == record.schedule_id)
+            .map(|schedule| schedule.dose)
+            .unwrap_or(0.0);
+        Some((&medication.name, dose, medication.dose_type))
+    }
+
+    fn add_choice_overlay(&self) -> Element<'_, Message> {
+        let header = row![
+            text("Add Record").size(28).width(Fill),
+            button(button_with_icon!("icons/cross.png", 30, 10))
+                .style(style::time::button::overlay_close_button)
+                .padding(5)
+                .on_press(Message::CloseAddChoice),
+        ]
+        .align_y(alignment::Vertical::Center);
+
+        let options = column![
+            button(container(text("Regular Medication")).center_x(Fill))
+                .style(style::time::button::add_button)
+                .padding([15, 30])
+                .width(Fill)
+                .on_press(Message::OpenRegularMedication),
+            button(container(text("One-Time Record")).center_x(Fill))
+                .style(style::time::button::add_button)
+                .padding([15, 30])
+                .width(Fill)
+                .on_press(Message::OpenOneTimeRecord),
+        ]
+        .spacing(15);
+
+        let panel = container(column![header, options].spacing(20).padding(30))
+            .style(crate::ui::style::time::container::overlay_panel_container)
+            .width(380);
+
+        container(container(panel).center(Fill))
+            .style(backdrop)
+            .width(Fill)
+            .height(Fill)
+            .into()
+    }
+
+    fn calendar_part<'a>(&self) -> Element<'a, Message> {
         let today = Local::now().date_naive();
         let mut days = row![].spacing(8);
         let days_back = 30i64;
@@ -310,12 +434,16 @@ fn calendar_part<'a>(&self) -> Element<'a, Message> {
             .padding([10, 14])
             .on_press(Message::ScrollCalendarRight);
 
-        row![left_arrow, container(cal_scrollable.width(Fill).height(Shrink)).width(Fill), right_arrow]
-            .align_y(iced::alignment::Vertical::Center)
-            .spacing(8)
-            .width(Fill)
-            .padding(Padding::new(0.0).bottom(20))
-            .into()
+        row![
+            left_arrow,
+            container(cal_scrollable.width(Fill).height(Shrink)).width(Fill),
+            right_arrow
+        ]
+        .align_y(iced::alignment::Vertical::Center)
+        .spacing(8)
+        .width(Fill)
+        .padding(Padding::new(0.0).bottom(20))
+        .into()
     }
 }
 
@@ -323,6 +451,12 @@ fn calendar_part<'a>(&self) -> Element<'a, Message> {
 pub enum Message {
     SelectDay(NaiveDate),
     MedicationAdd(super::medicationaddpanel::Message),
+    OneTimeRecord(super::onetimepanel::Message),
+    OpenAddChoice,
+    CloseAddChoice,
+    OpenRegularMedication,
+    OpenOneTimeRecord,
+    DeleteRecord(String),
     Taken(super::takenpanel::Message),
     MarkSkipped(String),
     MarkTakenToggle(String),

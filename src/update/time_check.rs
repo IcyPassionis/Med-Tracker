@@ -27,14 +27,14 @@ pub fn check_new_day(tracker: &mut MedicationTracker) {
 pub fn check_medication_schedule(tracker: &MedicationTracker) -> Vec<String> {
     let now = Utc::now();
     let alarm_window = 15;
-    let today = now.date_naive();
+    let today = Local::now().date_naive();
     let mut alarming_records = Vec::new();
     for record in &tracker.records {
         let is_pending = matches!(record.occurrence_status, OccurrenceStatus::Pending);
         if !is_pending {
             continue;
         }
-        let record_date = record.time.date_naive();
+        let record_date = record.time.with_timezone(&Local).date_naive();
         let is_today = record_date.year() == today.year()
             && record_date.month() == today.month()
             && record_date.day() == today.day();
@@ -49,4 +49,20 @@ pub fn check_medication_schedule(tracker: &MedicationTracker) -> Vec<String> {
     }
 
     alarming_records
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::medication::dosetype::DoseType;
+    use chrono::Utc;
+
+    #[test]
+    fn one_time_record_created_at_local_now_is_found_by_alarm_scan() {
+        let mut tracker = MedicationTracker::new();
+        let record_id =
+            tracker.insert_one_time_record("Local alarm".into(), 1.0, DoseType::Mg, Utc::now());
+
+        assert!(check_medication_schedule(&tracker).contains(&record_id));
+    }
 }
