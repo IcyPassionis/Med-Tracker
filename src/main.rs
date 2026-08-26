@@ -311,7 +311,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
         }
         Message::Time(msg) => {
             let deleted_record_id = match &msg {
-                home::time::Message::DeleteRecord(id) => Some(id.clone()),
+                home::time::Message::ConfirmDelete(id) => Some(id.clone()),
                 _ => None,
             };
             let should_save = matches!(
@@ -319,7 +319,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 home::time::Message::MedicationAdd(_)
                     | home::time::Message::MarkSkipped(_)
                     | home::time::Message::MarkTakenToggle(_)
-                    | home::time::Message::DeleteRecord(_)
+                    | home::time::Message::ConfirmDelete(_)
                     | home::time::Message::Taken(
                         home::takenpanel::Message::TakeNow | home::takenpanel::Message::Confirm
                     )

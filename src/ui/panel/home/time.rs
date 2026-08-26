@@ -21,6 +21,7 @@ pub struct TimeUI {
     calendar_scroll_id: Id,
     pub needs_scroll_to_today: bool,
     add_choice_open: bool,
+    pending_delete_id: Option<String>,
 }
 
 impl TimeUI {
@@ -34,6 +35,7 @@ impl TimeUI {
             calendar_scroll_id: Id::unique(),
             needs_scroll_to_today: true,
             add_choice_open: false,
+            pending_delete_id: None,
         }
     }
 
@@ -81,8 +83,17 @@ impl TimeUI {
             base
         };
 
-        if let Some(overlay) = self.taken_panel.view() {
+        let base = if let Some(overlay) = self.taken_panel.view() {
             stack![base, overlay.map(Message::Taken)]
+                .width(Fill)
+                .height(Fill)
+                .into()
+        } else {
+            base
+        };
+
+        if self.pending_delete_id.is_some() {
+            stack![base, self.delete_confirmation_overlay()]
                 .width(Fill)
                 .height(Fill)
                 .into()
@@ -134,8 +145,17 @@ impl TimeUI {
                 one_time_created = self.one_time_panel.update(state, self.selected_date, msg);
                 Task::none()
             }
-            Message::DeleteRecord(id) => {
+            Message::AskDelete(id) => {
+                self.pending_delete_id = Some(id);
+                Task::none()
+            }
+            Message::ConfirmDelete(id) => {
                 state.delete_one_time_record(&id);
+                self.pending_delete_id = None;
+                Task::none()
+            }
+            Message::CancelDelete => {
+                self.pending_delete_id = None;
                 Task::none()
             }
             Message::MarkSkipped(id) => {
@@ -182,6 +202,7 @@ impl TimeUI {
         self.medication_panel.close();
         self.one_time_panel.close();
         self.add_choice_open = false;
+        self.pending_delete_id = None;
     }
 
     pub fn select_date(&mut self, date: NaiveDate) {
@@ -275,7 +296,7 @@ impl TimeUI {
                     button(button_with_icon!("icons/trash.png", 32, 10))
                         .style(style::time::button::record_action_button)
                         .padding(10)
-                        .on_press(Message::DeleteRecord(record.id.clone()))
+                        .on_press(Message::AskDelete(record.id.clone()))
                         .into()
                 } else {
                     button(button_with_icon!("icons/cross.png", 32, 10))
@@ -391,6 +412,47 @@ impl TimeUI {
             .into()
     }
 
+    fn delete_confirmation_overlay(&self) -> Element<'_, Message> {
+        let Some(id) = self.pending_delete_id.clone() else {
+            return container("").into();
+        };
+
+        let panel = container(
+            column![
+                text("Are you sure?").size(20),
+                row![
+                    button("No")
+                        .style(style::time::button::add_button)
+                        .padding([12, 30])
+                        .on_press(Message::CancelDelete),
+                    button("Yes")
+                        .style(style::time::button::add_button)
+                        .padding([12, 30])
+                        .on_press(Message::ConfirmDelete(id)),
+                ]
+                .spacing(16),
+            ]
+            .spacing(16)
+            .padding(30),
+        )
+        .style(crate::ui::style::medications::container::delete_dialog)
+        .width(Shrink)
+        .height(Shrink);
+
+        stack![
+            container("")
+                .width(Fill)
+                .height(Fill)
+                .style(crate::ui::style::medications::container::backdrop),
+            container(panel)
+                .width(Fill)
+                .height(Fill)
+                .center_x(Fill)
+                .center_y(Fill),
+        ]
+        .into()
+    }
+
     fn calendar_part<'a>(&self) -> Element<'a, Message> {
         let today = Local::now().date_naive();
         let mut days = row![].spacing(8);
@@ -456,7 +518,9 @@ pub enum Message {
     CloseAddChoice,
     OpenRegularMedication,
     OpenOneTimeRecord,
-    DeleteRecord(String),
+    AskDelete(String),
+    ConfirmDelete(String),
+    CancelDelete,
     Taken(super::takenpanel::Message),
     MarkSkipped(String),
     MarkTakenToggle(String),
