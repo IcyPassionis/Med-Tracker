@@ -5,6 +5,7 @@ use crate::application::states::medicationtracker::MedicationTracker;
 pub fn dismiss_expired_alarms(
     tracker: &mut MedicationTracker,
     alarming_records: &mut Vec<String>,
+    alarm_time_minutes: u32,
 ) -> bool {
     let now = Utc::now();
     let expired: Vec<String> = alarming_records
@@ -14,7 +15,11 @@ pub fn dismiss_expired_alarms(
                 .records
                 .iter()
                 .find(|r| &r.id == *id)
-                .map(|r| now.signed_duration_since(r.time).num_minutes() > 15)
+                .map(|r| {
+                    alarm_time_minutes != 0
+                        && now.signed_duration_since(r.time).num_minutes()
+                            > alarm_time_minutes as i64
+                })
                 .unwrap_or(true)
         })
         .cloned()
@@ -52,7 +57,7 @@ mod tests {
         );
         let mut alarming_records = vec![record_id.clone()];
 
-        assert!(dismiss_expired_alarms(&mut tracker, &mut alarming_records));
+        assert!(dismiss_expired_alarms(&mut tracker, &mut alarming_records, 15));
         assert!(alarming_records.is_empty());
         assert!(matches!(
             tracker.records[0].occurrence_status,
@@ -72,11 +77,30 @@ mod tests {
         tracker.records.push(record);
         let mut alarming_records = vec![record_id];
 
-        dismiss_expired_alarms(&mut tracker, &mut alarming_records);
+        dismiss_expired_alarms(&mut tracker, &mut alarming_records, 15);
 
         assert!(matches!(
             tracker.records[0].occurrence_status,
             OccurrenceStatus::Missed
         ));
+    }
+
+    #[test]
+    fn zero_alarm_time_keeps_alarm_active() {
+        let mut tracker = MedicationTracker::new();
+        let record_id = tracker.insert_one_time_record(
+            "Infinite alarm".into(),
+            1.0,
+            DoseType::Mg,
+            Utc::now() - Duration::minutes(100),
+        );
+        let mut alarming_records = vec![record_id];
+
+        assert!(!dismiss_expired_alarms(
+            &mut tracker,
+            &mut alarming_records,
+            0
+        ));
+        assert_eq!(alarming_records.len(), 1);
     }
 }

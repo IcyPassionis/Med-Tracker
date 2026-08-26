@@ -131,7 +131,10 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             if old_date != state.medicationtracker.last_generation_date {
                 save(state);
             }
-            let alarming_records = check_medication_schedule(&state.medicationtracker);
+            let alarming_records = check_medication_schedule(
+                &state.medicationtracker,
+                state.settings.alarm_time_minutes,
+            );
             let mut any_new = false;
             for record_id in alarming_records {
                 let is_new = !state.uistate.alarmui.alarming_records.contains(&record_id);
@@ -174,6 +177,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             let had_expired = dismiss_expired_alarms(
                 &mut state.medicationtracker,
                 &mut state.uistate.alarmui.alarming_records,
+                state.settings.alarm_time_minutes,
             );
             if had_expired {
                 save(state);

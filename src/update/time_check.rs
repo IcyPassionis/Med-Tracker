@@ -24,9 +24,11 @@ pub fn check_new_day(tracker: &mut MedicationTracker) {
     }
 }
 
-pub fn check_medication_schedule(tracker: &MedicationTracker) -> Vec<String> {
+pub fn check_medication_schedule(
+    tracker: &MedicationTracker,
+    alarm_time_minutes: u32,
+) -> Vec<String> {
     let now = Utc::now();
-    let alarm_window = 15;
     let today = Local::now().date_naive();
     let mut alarming_records = Vec::new();
     for record in &tracker.records {
@@ -43,7 +45,7 @@ pub fn check_medication_schedule(tracker: &MedicationTracker) -> Vec<String> {
         }
         let diff = now.signed_duration_since(record.time);
         let elapsed = diff.num_minutes();
-        if elapsed >= 0 && elapsed <= alarm_window {
+        if elapsed >= 0 && (alarm_time_minutes == 0 || elapsed <= alarm_time_minutes as i64) {
             alarming_records.push(record.id.clone());
         }
     }
@@ -63,6 +65,21 @@ mod tests {
         let record_id =
             tracker.insert_one_time_record("Local alarm".into(), 1.0, DoseType::Mg, Utc::now());
 
-        assert!(check_medication_schedule(&tracker).contains(&record_id));
+        assert!(check_medication_schedule(&tracker, 15).contains(&record_id));
+    }
+
+    #[test]
+    fn alarm_scan_uses_configured_window_and_zero_is_infinite() {
+        let mut tracker = MedicationTracker::new();
+        let record_id = tracker.insert_one_time_record(
+            "Long alarm".into(),
+            1.0,
+            DoseType::Mg,
+            Utc::now() - chrono::Duration::minutes(20),
+        );
+
+        assert!(!check_medication_schedule(&tracker, 15).contains(&record_id));
+        assert!(check_medication_schedule(&tracker, 30).contains(&record_id));
+        assert!(check_medication_schedule(&tracker, 0).contains(&record_id));
     }
 }

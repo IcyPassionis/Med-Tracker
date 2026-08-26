@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use iced::widget::{
-    Image, button, column, container, pick_list, row, scrollable, slider, text, toggler,
+    Image, button, column, container, pick_list, row, scrollable, slider, text, text_input,
+    toggler,
 };
 use iced::{ContentFit, Element, Fill, Length, Theme, alignment};
 
@@ -191,6 +192,9 @@ impl Settingsui {
         let auto_startup = toggler(settings.is_auto_startup)
             .on_toggle(Message::ToggleAutoStartup)
             .size(24);
+        let alarm_time = text_input("15", &settings.alarm_time_minutes.to_string())
+            .on_input(Message::SetAlarmTime)
+            .width(Length::Fixed(100.0));
 
         self.detail_view(
             "System",
@@ -205,6 +209,11 @@ impl Settingsui {
                     "Start with system",
                     "Launch Med-Tracker when the system starts.".to_string(),
                     auto_startup.into(),
+                ),
+                setting_row(
+                    "Alarm time",
+                    "Keep alarms active for this many minutes after the scheduled time. Set to 0 for infinity.".to_string(),
+                    alarm_time.into(),
                 ),
             ]
             .spacing(16),
@@ -349,6 +358,20 @@ impl Settingsui {
                     true
                 }
             }
+            Message::SetAlarmTime(value) => {
+                if value.is_empty() || !value.chars().all(|character| character.is_ascii_digit()) {
+                    return false;
+                }
+                let Ok(minutes) = value.parse::<u32>() else {
+                    return false;
+                };
+                if settings.alarm_time_minutes == minutes {
+                    false
+                } else {
+                    settings.alarm_time_minutes = minutes;
+                    true
+                }
+            }
         }
     }
 }
@@ -473,4 +496,5 @@ pub enum Message {
     SoundFileSelected(Option<PathBuf>),
     ToggleMinimizeToTray(bool),
     ToggleAutoStartup(bool),
+    SetAlarmTime(String),
 }

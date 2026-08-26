@@ -14,6 +14,7 @@ struct PersistedSettings {
     sound_enabled: bool,
     sound_volume: f32,
     alarm_sound_path: String,
+    alarm_time_minutes: u32,
     is_auto_startup: bool,
     is_minimize_to_tray: bool,
     is_24_hour_format: bool,
@@ -35,6 +36,7 @@ impl From<&Settings> for PersistedSettings {
             sound_enabled: settings.sound_enabled,
             sound_volume: settings.sound_volume,
             alarm_sound_path: settings.alarm_sound_path.clone(),
+            alarm_time_minutes: settings.alarm_time_minutes,
             is_auto_startup: settings.is_auto_startup,
             is_minimize_to_tray: settings.is_minimize_to_tray,
             is_24_hour_format: settings.is_24_hour_format,
@@ -59,6 +61,7 @@ impl PersistedSettings {
             sound_enabled: self.sound_enabled,
             sound_volume,
             alarm_sound_path: self.alarm_sound_path,
+            alarm_time_minutes: self.alarm_time_minutes,
             is_auto_startup: self.is_auto_startup,
             is_minimize_to_tray: self.is_minimize_to_tray,
             is_24_hour_format: self.is_24_hour_format,
@@ -112,6 +115,7 @@ mod tests {
             sound_enabled: false,
             sound_volume: 0.35,
             alarm_sound_path: "/tmp/custom-alarm.wav".to_string(),
+            alarm_time_minutes: 30,
             is_auto_startup: true,
             is_minimize_to_tray: true,
             is_24_hour_format: false,
@@ -129,6 +133,7 @@ mod tests {
         assert_eq!(restored.sound_enabled, settings.sound_enabled);
         assert_eq!(restored.sound_volume, settings.sound_volume);
         assert_eq!(restored.alarm_sound_path, settings.alarm_sound_path);
+        assert_eq!(restored.alarm_time_minutes, settings.alarm_time_minutes);
         assert_eq!(restored.is_auto_startup, settings.is_auto_startup);
         assert_eq!(restored.is_minimize_to_tray, settings.is_minimize_to_tray);
         assert_eq!(restored.is_24_hour_format, settings.is_24_hour_format);
@@ -154,5 +159,6 @@ mod tests {
         assert_eq!(restored.sound_volume, 1.0);
         assert_eq!(restored.language, "English");
         assert!(restored.sound_enabled);
+        assert_eq!(restored.alarm_time_minutes, 15);
     }
 }
