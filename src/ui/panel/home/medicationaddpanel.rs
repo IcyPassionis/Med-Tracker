@@ -364,7 +364,9 @@ impl MedicationAddPanel {
         )
         .center_x(Fill);
 
-        let panel_content = column![header, form, container(column![]).height(Fill), add_btn]
+        let form = scrollable(form).height(Fill);
+
+        let panel_content = column![header, form, add_btn]
             .spacing(20)
             .padding(30)
             .height(Fill);
@@ -441,7 +443,7 @@ impl MedicationAddPanel {
 
                 rows = rows.push(schedule_row);
             }
-            scrollable(rows).into()
+            scrollable(rows).height(Fill).into()
         };
 
         let add_schedule_btn = container(
@@ -460,16 +462,10 @@ impl MedicationAddPanel {
         )
         .center_x(Fill);
 
-        let panel_content = column![
-            header,
-            schedule_list,
-            container(column![]).height(Fill),
-            add_schedule_btn,
-            done_btn
-        ]
-        .spacing(20)
-        .padding(30)
-        .height(Fill);
+        let panel_content = column![header, schedule_list, add_schedule_btn, done_btn]
+            .spacing(20)
+            .padding(30)
+            .height(Fill);
 
         self.centered_panel(panel_content.into())
     }
@@ -616,18 +612,17 @@ impl MedicationAddPanel {
         )
         .center_x(Fill);
 
-        let panel_content = column![
-            header,
-            mode_toggle,
-            time_row,
-            dose_field,
-            interval_form,
-            container(column![]).height(Fill),
-            save_btn
-        ]
-        .spacing(20)
-        .padding(30)
+        let form = scrollable(
+            column![mode_toggle, time_row, dose_field, interval_form]
+                .spacing(20)
+                .width(Fill),
+        )
         .height(Fill);
+
+        let panel_content = column![header, form, save_btn]
+            .spacing(20)
+            .padding(30)
+            .height(Fill);
 
         self.centered_panel(panel_content.into())
     }
