@@ -19,6 +19,8 @@ pub struct Record {
     pub occurrence_status: OccurrenceStatus,
     #[serde(default)]
     pub rescheduled: bool,
+    #[serde(skip)]
+    pub is_muted: bool,
     #[serde(default)]
     pub pills_deducted: f32,
     #[serde(default)]
@@ -33,6 +35,7 @@ impl Record {
             time,
             occurrence_status: OccurrenceStatus::Pending,
             rescheduled: false,
+            is_muted: false,
             pills_deducted: 0.0,
             one_time: None,
         }
@@ -51,6 +54,7 @@ impl Record {
             time,
             occurrence_status: OccurrenceStatus::Pending,
             rescheduled: false,
+            is_muted: false,
             pills_deducted: 0.0,
             one_time: Some(OneTimeData {
                 name,
@@ -72,6 +76,7 @@ impl Record {
             time: chrono::Utc::now(),
             occurrence_status: OccurrenceStatus::Pending,
             rescheduled: false,
+            is_muted: false,
             pills_deducted: 0.0,
             one_time: None,
         }
@@ -119,5 +124,17 @@ mod tests {
                 dose_type: DoseType::Ml,
             })
         );
+    }
+
+    #[test]
+    fn mute_state_is_not_persisted() {
+        let mut record = Record::new("medication-id".into(), "schedule-id".into(), Utc::now());
+        record.is_muted = true;
+
+        let json = serde_json::to_string(&record).unwrap();
+        let restored: Record = serde_json::from_str(&json).unwrap();
+
+        assert!(!json.contains("is_muted"));
+        assert!(!restored.is_muted);
     }
 }

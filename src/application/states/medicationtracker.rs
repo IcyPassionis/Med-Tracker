@@ -55,6 +55,18 @@ impl MedicationTracker {
         true
     }
 
+    pub fn toggle_muted(&mut self, record_id: &str) {
+        if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
+            record.is_muted = !record.is_muted;
+        }
+    }
+
+    pub fn clear_mute(&mut self, record_id: &str) {
+        if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
+            record.is_muted = false;
+        }
+    }
+
     fn deduct_stock(&mut self, record_id: &str) {
         let record = match self.records.iter().position(|r| r.id == record_id) {
             Some(idx) => idx,
@@ -118,12 +130,14 @@ impl MedicationTracker {
             self.restore_stock(record_id);
             if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
                 record.occurrence_status = OccurrenceStatus::Pending;
+                record.is_muted = false;
             }
         } else {
             if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
                 record.occurrence_status = OccurrenceStatus::Taken {
                     taken_at: Utc::now(),
                 };
+                record.is_muted = false;
             }
             self.deduct_stock(record_id);
         }
@@ -139,10 +153,12 @@ impl MedicationTracker {
             self.restore_stock(record_id);
             if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
                 record.occurrence_status = OccurrenceStatus::Pending;
+                record.is_muted = false;
             }
         } else {
             if let Some(record) = self.records.iter_mut().find(|r| r.id == record_id) {
                 record.occurrence_status = OccurrenceStatus::Taken { taken_at };
+                record.is_muted = false;
             }
             self.deduct_stock(record_id);
         }
@@ -161,6 +177,7 @@ impl MedicationTracker {
             } else {
                 record.occurrence_status = OccurrenceStatus::Skipped { reason: None };
             }
+            record.is_muted = false;
         }
     }
     pub fn mark_as_missed(&mut self, record_id: &str) {
@@ -169,6 +186,7 @@ impl MedicationTracker {
                 return;
             }
             record.occurrence_status = OccurrenceStatus::Missed;
+            record.is_muted = false;
         }
     }
 
@@ -184,6 +202,7 @@ impl MedicationTracker {
             record.time = new_time;
             record.rescheduled = true;
             record.occurrence_status = OccurrenceStatus::Pending;
+            record.is_muted = false;
         }
     }
 
@@ -307,5 +326,42 @@ mod tests {
         );
 
         assert_eq!(tracker.days_left(&medication_id), Some(280));
+    }
+
+    #[test]
+    fn mute_toggle_targets_one_record_and_actions_clear_it() {
+        let mut tracker = MedicationTracker::new();
+        let first = tracker.insert_one_time_record("First".into(), 1.0, DoseType::Mg, Utc::now());
+        let second = tracker.insert_one_time_record("Second".into(), 1.0, DoseType::Mg, Utc::now());
+
+        tracker.toggle_muted(&first);
+
+        assert!(
+            tracker
+                .records
+                .iter()
+                .find(|r| r.id == first)
+                .unwrap()
+                .is_muted
+        );
+        assert!(
+            !tracker
+                .records
+                .iter()
+                .find(|r| r.id == second)
+                .unwrap()
+                .is_muted
+        );
+
+        tracker.mark_as_taken(&first);
+
+        assert!(
+            !tracker
+                .records
+                .iter()
+                .find(|r| r.id == first)
+                .unwrap()
+                .is_muted
+        );
     }
 }

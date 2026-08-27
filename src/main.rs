@@ -135,11 +135,10 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 &state.medicationtracker,
                 state.settings.alarm_time_minutes,
             );
-            let mut any_new = false;
+            let mut any_new_audible = false;
             for record_id in alarming_records {
                 let is_new = !state.uistate.alarmui.alarming_records.contains(&record_id);
                 if is_new {
-                    any_new = true;
                     if let Some(record) = state
                         .medicationtracker
                         .records
@@ -160,11 +159,14 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                             .format("%H:%M")
                             .to_string();
                         send_alarm_notification(med_name, &time_str);
+                        if !record.is_muted {
+                            any_new_audible = true;
+                        }
                     }
                 }
                 state.uistate.alarmui.add_alarming_record(record_id);
             }
-            if any_new && state.settings.sound_enabled {
+            if any_new_audible && state.settings.sound_enabled {
                 play_alarm(
                     &state.settings.alarm_sound_path,
                     state.settings.sound_volume,
@@ -182,8 +184,14 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             if had_expired {
                 save(state);
             }
-            if !state.uistate.alarmui.is_active() && state.state.panel == Panel::Alarm {
+            if !state
+                .uistate
+                .alarmui
+                .has_audible_alarm(&state.medicationtracker)
+            {
                 stop_alarm();
+            }
+            if !state.uistate.alarmui.is_active() && state.state.panel == Panel::Alarm {
                 state.state.restore_previous_panel();
             }
 
@@ -296,7 +304,10 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 }
                 if !state.settings.sound_enabled {
                     stop_alarm();
-                } else if state.uistate.alarmui.is_active()
+                } else if state
+                    .uistate
+                    .alarmui
+                    .has_audible_alarm(&state.medicationtracker)
                     && (previous_sound_enabled != state.settings.sound_enabled
                         || previous_sound_volume != state.settings.sound_volume
                         || previous_alarm_sound_path != state.settings.alarm_sound_path)
@@ -383,8 +394,13 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::Alarm(msg) => {
+            let was_audible = state
+                .uistate
+                .alarmui
+                .has_audible_alarm(&state.medicationtracker);
+            let toggled_mute = matches!(&msg, alarm::Message::ToggleMuted(_));
             let should_save = matches!(
-                msg,
+                &msg,
                 alarm::Message::MarkTaken(_)
                     | alarm::Message::MarkSkipped(_)
                     | alarm::Message::MarkAllTaken(_)
@@ -397,8 +413,19 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 .uistate
                 .alarmui
                 .update(&mut state.medicationtracker, msg);
-            if !state.uistate.alarmui.is_active() {
+            let is_audible = state
+                .uistate
+                .alarmui
+                .has_audible_alarm(&state.medicationtracker);
+            if !state.settings.sound_enabled || !is_audible {
                 stop_alarm();
+            } else if toggled_mute && !was_audible {
+                play_alarm(
+                    &state.settings.alarm_sound_path,
+                    state.settings.sound_volume,
+                );
+            }
+            if !state.uistate.alarmui.is_active() {
                 state.state.restore_previous_panel();
             }
             if should_save {

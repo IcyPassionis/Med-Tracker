@@ -25,6 +25,7 @@ pub fn dismiss_expired_alarms(
         .cloned()
         .collect();
     for id in &expired {
+        tracker.clear_mute(id);
         if tracker
             .records
             .iter()
@@ -55,6 +56,7 @@ mod tests {
             DoseType::Mg,
             Utc::now() - Duration::minutes(16),
         );
+        tracker.toggle_muted(&record_id);
         let mut alarming_records = vec![record_id.clone()];
 
         assert!(dismiss_expired_alarms(&mut tracker, &mut alarming_records, 15));
@@ -63,6 +65,7 @@ mod tests {
             tracker.records[0].occurrence_status,
             OccurrenceStatus::Pending
         ));
+        assert!(!tracker.records[0].is_muted);
     }
 
     #[test]

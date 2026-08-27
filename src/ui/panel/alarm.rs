@@ -1,11 +1,14 @@
 use crate::application::medication::record::Record;
 use crate::application::states::medicationtracker::MedicationTracker;
+use crate::ui::macros::button_with_icon;
 use crate::ui::panel::home::reschedulepanel::ReschedulePanel;
-use crate::ui::style::alarm::button::{alarm_action_button, alarm_take_button};
+use crate::ui::style::alarm::button::{
+    alarm_action_button, alarm_sound_action_button, alarm_take_button,
+};
 use crate::ui::style::alarm::container::{alarm_panel_container, medication_item_container};
 use chrono::Local;
-use ice::widget::{Space, button, column, container, row, scrollable, stack, text};
-use ice::{Element, Length};
+use ice::widget::{Image, Space, button, column, container, row, scrollable, stack, text};
+use ice::{ContentFit, Element, Length, alignment};
 use iced as ice;
 
 pub struct AlarmUI {
@@ -86,14 +89,22 @@ impl AlarmUI {
         let schedule_time_text = format!("{} - {}", time, record_label);
         column![
             container(
-                text(schedule_time_text)
-                    .size(24)
-                    .style(|theme: &ice::Theme| {
-                        let palette = theme.extended_palette();
-                        ice::widget::text::Style {
-                            color: Some(palette.background.strong.text),
-                        }
-                    })
+                row![
+                    text(schedule_time_text)
+                        .size(24)
+                        .style(|theme: &ice::Theme| {
+                            let palette = theme.extended_palette();
+                            ice::widget::text::Style {
+                                color: Some(palette.background.strong.text),
+                            }
+                        }),
+                    button(button_with_icon!(mute_icon(record.is_muted), 32, 0))
+                        .style(alarm_sound_action_button)
+                        .padding(10)
+                        .on_press(Message::ToggleMuted(vec![record.id.clone()])),
+                ]
+                .spacing(15)
+                .align_y(ice::alignment::Vertical::Center)
             )
             .padding(ice::Padding {
                 top: 35.0,
@@ -166,6 +177,7 @@ impl AlarmUI {
         let count = records.len();
         let header_text = format!("{} Medications", count);
         let record_ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
+        let all_muted = records.iter().all(|record| record.is_muted);
         let mut records_list = column![].spacing(20);
         for record in records {
             let (med_name, dose_text) = if let Some(data) = &record.one_time {
@@ -230,14 +242,22 @@ impl AlarmUI {
         }
         column![
             container(
-                text(schedule_time_text)
-                    .size(24)
-                    .style(|theme: &ice::Theme| {
-                        let palette = theme.extended_palette();
-                        ice::widget::text::Style {
-                            color: Some(palette.background.strong.text),
-                        }
-                    })
+                row![
+                    button(button_with_icon!(mute_icon(all_muted), 32, 0))
+                        .style(alarm_sound_action_button)
+                        .padding(10)
+                        .on_press(Message::ToggleMuted(record_ids.clone())),
+                    text(schedule_time_text)
+                        .size(24)
+                        .style(|theme: &ice::Theme| {
+                            let palette = theme.extended_palette();
+                            ice::widget::text::Style {
+                                color: Some(palette.background.strong.text),
+                            }
+                        }),
+                ]
+                .spacing(15)
+                .align_y(ice::alignment::Vertical::Center)
             )
             .padding(ice::Padding {
                 top: 35.0,
@@ -302,6 +322,11 @@ impl AlarmUI {
                 }
                 self.remove_records(&record_ids);
             }
+            Message::ToggleMuted(record_ids) => {
+                for record_id in record_ids {
+                    tracker.toggle_muted(&record_id);
+                }
+            }
             Message::MarkRescheduled(record_id) => {
                 if let Some(record) = tracker.records.iter().find(|r| r.id == record_id) {
                     self.reschedule_panel.open(record_id, record.time);
@@ -336,6 +361,15 @@ impl AlarmUI {
         !self.alarming_records.is_empty()
     }
 
+    pub fn has_audible_alarm(&self, tracker: &MedicationTracker) -> bool {
+        self.alarming_records.iter().any(|id| {
+            tracker
+                .records
+                .iter()
+                .any(|record| record.id == *id && !record.is_muted)
+        })
+    }
+
     pub fn add_alarming_record(&mut self, record_id: String) {
         if !self.alarming_records.contains(&record_id) {
             self.alarming_records.push(record_id);
@@ -351,7 +385,16 @@ pub enum Message {
     MarkSkipped(String),
     MarkAllTaken(Vec<String>),
     MarkAllSkipped(Vec<String>),
+    ToggleMuted(Vec<String>),
     MarkRescheduled(String),
     MarkAllRescheduled(Vec<String>),
     Reschedule(crate::ui::panel::home::reschedulepanel::Message),
+}
+
+fn mute_icon(is_muted: bool) -> &'static str {
+    if is_muted {
+        "icons/soundoff.png"
+    } else {
+        "icons/soundon.png"
+    }
 }
