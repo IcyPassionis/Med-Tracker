@@ -165,6 +165,7 @@ impl AlarmUI {
         };
         let count = records.len();
         let header_text = format!("{} Medications", count);
+        let record_ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
         let mut records_list = column![].spacing(20);
         for record in records {
             let (med_name, dose_text) = if let Some(data) = &record.one_time {
@@ -254,6 +255,25 @@ impl AlarmUI {
                     left: 0.0
                 }),
             scrollable(records_list).height(Length::Fill),
+            row![
+                button(container(text("Take all")).center_x(Length::Fill))
+                    .style(alarm_take_button)
+                    .width(Length::Fill)
+                    .padding(12)
+                    .on_press(Message::MarkAllTaken(record_ids.clone())),
+                button(container(text("Skip all")).center_x(Length::Fill))
+                    .style(alarm_action_button)
+                    .width(Length::Fill)
+                    .padding(12)
+                    .on_press(Message::MarkAllSkipped(record_ids.clone())),
+                button(container(text("Reschedule all")).center_x(Length::Fill))
+                    .style(alarm_action_button)
+                    .width(Length::Fill)
+                    .padding(12)
+                    .on_press(Message::MarkAllRescheduled(record_ids)),
+            ]
+            .spacing(15)
+            .width(Length::Fill),
         ]
         .width(Length::Fill)
         .height(Length::Fill)
@@ -270,14 +290,34 @@ impl AlarmUI {
                 tracker.mark_as_skipped(&record_id);
                 self.remove_record(&record_id);
             }
+            Message::MarkAllTaken(record_ids) => {
+                for record_id in &record_ids {
+                    tracker.mark_as_taken(record_id);
+                }
+                self.remove_records(&record_ids);
+            }
+            Message::MarkAllSkipped(record_ids) => {
+                for record_id in &record_ids {
+                    tracker.mark_as_skipped(record_id);
+                }
+                self.remove_records(&record_ids);
+            }
             Message::MarkRescheduled(record_id) => {
                 if let Some(record) = tracker.records.iter().find(|r| r.id == record_id) {
                     self.reschedule_panel.open(record_id, record.time);
                 }
             }
+            Message::MarkAllRescheduled(record_ids) => {
+                if let Some(record) = record_ids
+                    .iter()
+                    .find_map(|id| tracker.records.iter().find(|record| record.id == *id))
+                {
+                    self.reschedule_panel.open_many(record_ids, record.time);
+                }
+            }
             Message::Reschedule(msg) => {
-                if let Some(rescheduled_id) = self.reschedule_panel.update(tracker, msg) {
-                    self.remove_record(&rescheduled_id);
+                if let Some(rescheduled_ids) = self.reschedule_panel.update(tracker, msg) {
+                    self.remove_records(&rescheduled_ids);
                 }
             }
         }
@@ -285,6 +325,11 @@ impl AlarmUI {
 
     fn remove_record(&mut self, record_id: &str) {
         self.alarming_records.retain(|id| id != record_id);
+    }
+
+    fn remove_records(&mut self, record_ids: &[String]) {
+        self.alarming_records
+            .retain(|id| !record_ids.iter().any(|record_id| record_id == id));
     }
 
     pub fn is_active(&self) -> bool {
@@ -304,6 +349,9 @@ impl AlarmUI {
 pub enum Message {
     MarkTaken(String),
     MarkSkipped(String),
+    MarkAllTaken(Vec<String>),
+    MarkAllSkipped(Vec<String>),
     MarkRescheduled(String),
+    MarkAllRescheduled(Vec<String>),
     Reschedule(crate::ui::panel::home::reschedulepanel::Message),
 }

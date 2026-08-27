@@ -387,6 +387,8 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 msg,
                 alarm::Message::MarkTaken(_)
                     | alarm::Message::MarkSkipped(_)
+                    | alarm::Message::MarkAllTaken(_)
+                    | alarm::Message::MarkAllSkipped(_)
                     | alarm::Message::Reschedule(
                         crate::ui::panel::home::reschedulepanel::Message::Confirm
                     )

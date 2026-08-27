@@ -4,12 +4,12 @@ use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::overlay_panel_container;
 use chrono::{DateTime, TimeZone, Timelike, Utc};
-use iced::Length::{Fill, Shrink};
+use iced::Length::Fill;
 use iced::widget::{Image, button, column, container, row, text, text_input};
 use iced::{ContentFit, Element, Padding, alignment};
 
 pub struct ReschedulePanel {
-    record_id: Option<String>,
+    record_ids: Vec<String>,
     hour: String,
     minute: String,
     warning: Option<String>,
@@ -27,7 +27,7 @@ pub enum Message {
 impl ReschedulePanel {
     pub fn new() -> Self {
         Self {
-            record_id: None,
+            record_ids: Vec::new(),
             hour: String::new(),
             minute: String::new(),
             warning: None,
@@ -35,19 +35,25 @@ impl ReschedulePanel {
     }
 
     pub fn open(&mut self, record_id: String, current_time: DateTime<Utc>) {
+        self.open_many(vec![record_id], current_time);
+    }
+
+    pub fn open_many(&mut self, record_ids: Vec<String>, current_time: DateTime<Utc>) {
         let local = current_time.with_timezone(&chrono::Local);
         self.hour = format!("{:02}", local.hour());
         self.minute = format!("{:02}", local.minute());
-        self.record_id = Some(record_id);
+        self.record_ids = record_ids;
         self.warning = None;
     }
 
     pub fn is_open(&self) -> bool {
-        self.record_id.is_some()
+        !self.record_ids.is_empty()
     }
 
     pub fn view(&self) -> Option<Element<'_, Message>> {
-        self.record_id.as_ref()?;
+        if self.record_ids.is_empty() {
+            return None;
+        }
 
         let time_row = row![
             text_input("HH", &self.hour)
@@ -105,7 +111,7 @@ impl ReschedulePanel {
         Some(overlay.into())
     }
 
-    pub fn update(&mut self, tracker: &mut MedicationTracker, msg: Message) -> Option<String> {
+    pub fn update(&mut self, tracker: &mut MedicationTracker, msg: Message) -> Option<Vec<String>> {
         match msg {
             Message::Open(id) => self.handle_open(tracker, id),
             Message::HourChange(v) => self.handle_hour_change(v),
@@ -115,14 +121,14 @@ impl ReschedulePanel {
         }
     }
 
-    fn handle_open(&mut self, tracker: &MedicationTracker, id: String) -> Option<String> {
+    fn handle_open(&mut self, tracker: &MedicationTracker, id: String) -> Option<Vec<String>> {
         if let Some(record) = tracker.records.iter().find(|r| r.id == id) {
             self.open(id, record.time);
         }
         None
     }
 
-    fn handle_hour_change(&mut self, v: String) -> Option<String> {
+    fn handle_hour_change(&mut self, v: String) -> Option<Vec<String>> {
         if v.len() <= 2 && v.chars().all(|c| c.is_ascii_digit()) {
             self.hour = v;
             self.warning = None;
@@ -130,7 +136,7 @@ impl ReschedulePanel {
         None
     }
 
-    fn handle_minute_change(&mut self, v: String) -> Option<String> {
+    fn handle_minute_change(&mut self, v: String) -> Option<Vec<String>> {
         if v.len() <= 2 && v.chars().all(|c| c.is_ascii_digit()) {
             self.minute = v;
             self.warning = None;
@@ -138,7 +144,7 @@ impl ReschedulePanel {
         None
     }
 
-    fn handle_confirm(&mut self, tracker: &mut MedicationTracker) -> Option<String> {
+    fn handle_confirm(&mut self, tracker: &mut MedicationTracker) -> Option<Vec<String>> {
         let hour: i32 = self.hour.parse().unwrap_or(-1);
         let minute: i32 = self.minute.parse().unwrap_or(-1);
         if hour < 0 || hour > 23 {
@@ -151,24 +157,26 @@ impl ReschedulePanel {
         }
         let hour = hour as u32;
         let minute = minute as u32;
-        let id = self.record_id.take()?;
-        if let Some(record) = tracker.records.iter().find(|r| r.id == id) {
-            let local = record.time.with_timezone(&chrono::Local);
-            let new_time = local
-                .date_naive()
-                .and_hms_opt(hour, minute, 0)
-                .and_then(|dt| chrono::Local.from_local_datetime(&dt).single())
-                .map(|dt| dt.with_timezone(&Utc));
-            if let Some(new_time) = new_time {
-                tracker.reschedule_record(&id, new_time);
+        let ids = std::mem::take(&mut self.record_ids);
+        for id in &ids {
+            if let Some(record) = tracker.records.iter().find(|r| r.id == *id) {
+                let local = record.time.with_timezone(&chrono::Local);
+                let new_time = local
+                    .date_naive()
+                    .and_hms_opt(hour, minute, 0)
+                    .and_then(|dt| chrono::Local.from_local_datetime(&dt).single())
+                    .map(|dt| dt.with_timezone(&Utc));
+                if let Some(new_time) = new_time {
+                    tracker.reschedule_record(id, new_time);
+                }
             }
         }
         self.clear_inputs();
-        Some(id)
+        Some(ids)
     }
 
-    fn handle_cancel(&mut self) -> Option<String> {
-        self.record_id = None;
+    fn handle_cancel(&mut self) -> Option<Vec<String>> {
+        self.record_ids.clear();
         self.warning = None;
         self.clear_inputs();
         None
