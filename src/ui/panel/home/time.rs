@@ -174,7 +174,26 @@ impl TimeUI {
                 self.reschedule_panel.update(state, msg);
                 Task::none()
             }
-            Message::ToggleSound(_hour, _minute) => Task::none(),
+            Message::ToggleSound(record_ids) => {
+                let should_mute = record_ids.iter().any(|record_id| {
+                    state
+                        .records
+                        .iter()
+                        .any(|record| &record.id == record_id && !record.is_muted)
+                });
+
+                for record_id in record_ids {
+                    let is_muted = state
+                        .records
+                        .iter()
+                        .find(|record| record.id == record_id)
+                        .is_some_and(|record| record.is_muted);
+                    if is_muted != should_mute {
+                        state.toggle_muted(&record_id);
+                    }
+                }
+                Task::none()
+            }
             Message::ScrollToToday => {
                 self.needs_scroll_to_today = false;
                 let relative_x = 30.0 / 61.0;
@@ -230,10 +249,12 @@ impl TimeUI {
             let mut schedule_container_column = column![].padding([20, 40]).spacing(20);
             let hour_minute = format!("{:02}:{:02}", hour, minute);
             let schedule_label = text(hour_minute).size(32).width(Fill);
-            let sound_button = button(button_with_icon!("icons/soundon.png", 32, 10))
+            let record_ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
+            let all_muted = records.iter().all(|record| record.is_muted);
+            let sound_button = button(button_with_icon!(mute_icon(all_muted), 32, 10))
                 .style(style::time::button::record_action_button)
                 .padding(10)
-                .on_press(Message::ToggleSound(*hour, *minute));
+                .on_press(Message::ToggleSound(record_ids));
             let schedule_header =
                 row![schedule_label, sound_button].align_y(alignment::Vertical::Center);
             schedule_container_column = schedule_container_column.push(schedule_header);
@@ -525,8 +546,16 @@ pub enum Message {
     MarkSkipped(String),
     MarkTakenToggle(String),
     Reschedule(super::reschedulepanel::Message),
-    ToggleSound(u32, u32),
+    ToggleSound(Vec<String>),
     ScrollToToday,
     ScrollCalendarLeft,
     ScrollCalendarRight,
+}
+
+fn mute_icon(is_muted: bool) -> &'static str {
+    if is_muted {
+        "icons/soundoff.png"
+    } else {
+        "icons/soundon.png"
+    }
 }
