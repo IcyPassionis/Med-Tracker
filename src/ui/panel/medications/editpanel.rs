@@ -491,17 +491,17 @@ impl MedicationEditPanel {
             .width(Fill)
             .on_press(Message::GoToStock);
 
-        let content = column![
-            header,
-            info,
-            container(column![]).height(Fill),
-            edit_btn,
-            schedules_btn,
-            stock_btn,
-        ]
-        .spacing(16)
-        .padding(30)
+        let body = scrollable(
+            column![info, container(column![]).height(Fill), edit_btn, schedules_btn, stock_btn]
+                .spacing(16)
+                .width(Fill),
+        )
         .height(Fill);
+
+        let content = column![header, body]
+            .spacing(16)
+            .padding(30)
+            .height(Fill);
 
         self.centered_panel(content.into())
     }
@@ -575,17 +575,17 @@ impl MedicationEditPanel {
         )
         .center_x(Fill);
 
-        let content = column![
-            header,
-            name_field,
-            row![stock_field, dose_type_field].spacing(20),
-            pill_dose_field,
-            container(column![]).height(Fill),
-            save_btn,
-        ]
-        .spacing(20)
-        .padding(30)
+        let form = scrollable(
+            column![name_field, row![stock_field, dose_type_field].spacing(20), pill_dose_field]
+                .spacing(20)
+                .width(Fill),
+        )
         .height(Fill);
+
+        let content = column![header, form, save_btn]
+            .spacing(20)
+            .padding(30)
+            .height(Fill);
 
         self.centered_panel(content.into())
     }
@@ -614,10 +614,13 @@ impl MedicationEditPanel {
             .unwrap_or_default();
 
         let schedule_list: Element<'a, Message> = if schedules.is_empty() {
-            container(text("No schedules yet").size(14).center())
-                .width(Fill)
-                .padding([20, 0])
-                .into()
+            scrollable(
+                container(text("No schedules yet").size(14).center())
+                    .width(Fill)
+                    .padding([20, 0]),
+            )
+            .height(Fill)
+            .into()
         } else {
             let mut rows = column![].spacing(8);
             for schedule in schedules {
@@ -652,7 +655,7 @@ impl MedicationEditPanel {
 
                 rows = rows.push(schedule_row);
             }
-            scrollable(rows).into()
+            scrollable(rows).height(Fill).into()
         };
 
         let add_btn = container(
@@ -806,18 +809,17 @@ impl MedicationEditPanel {
         )
         .center_x(Fill);
 
-        let content = column![
-            header,
-            mode_toggle,
-            time_row,
-            dose_field,
-            interval_form,
-            container(column![]).height(Fill),
-            save_btn,
-        ]
-        .spacing(20)
-        .padding(30)
+        let form = scrollable(
+            column![mode_toggle, time_row, dose_field, interval_form]
+                .spacing(20)
+                .width(Fill),
+        )
         .height(Fill);
+
+        let content = column![header, form, save_btn]
+            .spacing(20)
+            .padding(30)
+            .height(Fill);
 
         self.centered_panel(content.into())
     }
