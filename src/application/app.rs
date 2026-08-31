@@ -12,6 +12,7 @@ pub struct App {
     pub window_id: Option<iced::window::Id>,
     pub popup_window_id: Option<iced::window::Id>,
     pub tray_icon: Option<tray::TrayIcon>,
+    pub sidebar_visible: bool,
 }
 impl App {
     pub fn new() -> Self {
@@ -24,6 +25,7 @@ impl App {
             window_id: None,
             popup_window_id: None,
             tray_icon: None,
+            sidebar_visible: true,
         }
     }
 
@@ -42,6 +44,7 @@ impl Default for App {
             window_id: None,
             popup_window_id: None,
             tray_icon: None,
+            sidebar_visible: true,
         }
     }
 }

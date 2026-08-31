@@ -4,7 +4,7 @@ use iced::{self as ice, window, Element, Length::Fill, Theme};
 use crate::application::app::App;
 use crate::application::message::Message;
 use crate::ui::content::main_content;
-use crate::ui::sidebar::{side_bar, sidebar_border};
+use crate::ui::sidebar::{collapsed_sidebar, side_bar, sidebar_border};
 use ice::widget::row;
 
 pub fn title(_state: &App, _window_id: window::Id) -> String {
@@ -20,14 +20,16 @@ pub fn view(state: &App, window_id: window::Id) -> Element<Message> {
 }
 
 fn main_view(state: &App) -> Element<Message> {
-    row![
-        side_bar(&state.state.panel),
-        sidebar_border(),
-        main_content(state),
-    ]
-    .width(Fill)
-    .height(Fill)
-    .into()
+    let mut children = vec![];
+    if state.sidebar_visible {
+        children.push(side_bar(&state.state.panel));
+        children.push(sidebar_border());
+    } else {
+        children.push(collapsed_sidebar());
+        children.push(sidebar_border());
+    }
+    children.push(main_content(state));
+    row(children).width(Fill).height(Fill).into()
 }
 
 fn tray_popup_view() -> Element<'static, Message> {

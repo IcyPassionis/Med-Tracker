@@ -80,6 +80,20 @@ pub fn side_bar(current_panel: &Panel) -> Element<'static, Message> {
     .height(Fill)
     .into()
 }
+pub fn collapsed_sidebar() -> Element<'static, Message> {
+    container(
+        button(macros::button_with_icon!("icons/showpanel.png", 32, 10))
+            .style(navbar_button)
+            .padding(0)
+            .on_press(Message::OpenSidebar)
+            .height(Length::Fixed(80.0))
+            .width(Fill),
+    )
+    .style(sidebar_style)
+    .width(Length::Fixed(40.0))
+    .height(Fill)
+    .into()
+}
 pub fn sidebar_border() -> Element<'static, Message> {
     container("")
         .width(1)

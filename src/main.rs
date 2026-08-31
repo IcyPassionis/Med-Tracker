@@ -433,7 +433,13 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             }
             Task::none()
         }
-        Message::HideSidebar => Task::none(),
-        Message::OpenSidebar => Task::none(),
+        Message::HideSidebar => {
+            state.sidebar_visible = false;
+            Task::none()
+        }
+        Message::OpenSidebar => {
+            state.sidebar_visible = true;
+            Task::none()
+        }
     }
 }
