@@ -62,6 +62,18 @@ impl Record {
             Message::CancelDelete => {
                 self.pending_delete_id = None;
             }
+            Message::ToggleArchive(id) => {
+                let archived = match tracker.medications.iter_mut().find(|m| m.id == id) {
+                    Some(medication) => {
+                        medication.is_archived = !medication.is_archived;
+                        medication.is_archived
+                    }
+                    None => return,
+                };
+                if archived {
+                    tracker.remove_future_empty_records(&id);
+                }
+            }
             Message::OpenEdit(id) => {
                 self.edit_panel.open(id, tracker);
             }
@@ -100,8 +112,14 @@ impl Record {
             .spacing(4)
             .width(Fill);
 
-            if let Some(days) = tracker.days_left(&med.id) {
-                info = info.push(text(format!("{} days left", days)).size(14));
+            if !med.is_archived {
+                if let Some(days) = tracker.days_left(&med.id) {
+                    info = info.push(text(format!("{} days left", days)).size(14));
+                }
+            }
+
+            if med.is_archived {
+                info = info.push(text("Archived").size(14));
             }
 
             let refill_btn = button(button_with_icon!("icons/medicine-syrup.png", 20, 0))
@@ -109,12 +127,17 @@ impl Record {
                 .padding(10)
                 .on_press(Message::OpenRefill(med.id.clone()));
 
+            let archive_btn = button(button_with_icon!("icons/archive.png", 20, 0))
+                .style(style::time::button::overlay_close_button)
+                .padding(10)
+                .on_press(Message::ToggleArchive(med.id.clone()));
+
             let delete_btn = button(button_with_icon!("icons/cross.png", 20, 0))
                 .style(style::time::button::overlay_close_button)
                 .padding(10)
                 .on_press(Message::AskDelete(med.id.clone()));
 
-            let card_row = row![pill_placeholder, info, refill_btn, delete_btn]
+            let card_row = row![pill_placeholder, info, refill_btn, archive_btn, delete_btn]
                 .spacing(16)
                 .align_y(alignment::Vertical::Center)
                 .padding([14, 20]);
@@ -195,6 +218,7 @@ pub enum Message {
     AskDelete(String),
     ConfirmDelete,
     CancelDelete,
+    ToggleArchive(String),
     OpenEdit(String),
     OpenRefill(String),
     Edit(editpanel::Message),

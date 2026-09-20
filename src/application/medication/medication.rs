@@ -15,6 +15,8 @@ pub struct Medication {
     pub dose_type: DoseType,
     pub created_at: DateTime<Utc>,
     pub schedules: Vec<Schedule>,
+    #[serde(default)]
+    pub is_archived: bool,
 }
 
 fn default_pill_dose() -> f32 {
@@ -31,6 +33,7 @@ impl Medication {
             dose_type: DoseType::Mg,
             created_at: Local::now().to_utc(),
             schedules: Vec::new(),
+            is_archived: false,
         }
     }
 }

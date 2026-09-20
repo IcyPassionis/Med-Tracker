@@ -13,6 +13,9 @@ pub fn generate_future_records(tracker: &mut MedicationTracker) {
         .checked_add_months(Months::new(GENERATION_WINDOW_MONTHS))
         .expect("Date overflow adding generation window");
     for medication in &tracker.medications {
+        if medication.is_archived {
+            continue;
+        }
         for schedule in &medication.schedules {
             let new_records = if schedule.period_type.is_some() {
                 generate_interval_records(medication, schedule, today, end_date, &tracker.records)
@@ -38,6 +41,9 @@ pub fn generate_records_for_medication(tracker: &mut MedicationTracker, medicati
         .expect("Date overflow adding generation window");
     let medication = tracker.medications.iter().find(|m| m.id == medication_id);
     if let Some(medication) = medication {
+        if medication.is_archived {
+            return;
+        }
         let mut new_records = Vec::new();
         for schedule in &medication.schedules {
             let records = if schedule.period_type.is_some() {

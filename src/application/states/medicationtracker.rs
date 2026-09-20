@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Duration, Local, NaiveDate, Utc};
 
 use crate::application::medication::{
     dosetype::DoseType, medication::Medication, occurrencestatus::OccurrenceStatus, record::Record,
@@ -53,6 +53,18 @@ impl MedicationTracker {
 
         self.records.remove(index);
         true
+    }
+
+    pub fn remove_future_empty_records(&mut self, medication_id: &str) -> usize {
+        let today = Local::now().date_naive();
+        let before = self.records.len();
+        self.records.retain(|record| {
+            !(record.medication_id == medication_id
+                && record.time.with_timezone(&Local).date_naive() > today
+                && matches!(record.occurrence_status, OccurrenceStatus::Pending)
+                && !record.rescheduled)
+        });
+        before - self.records.len()
     }
 
     pub fn toggle_muted(&mut self, record_id: &str) {
