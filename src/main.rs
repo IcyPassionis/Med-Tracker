@@ -366,13 +366,15 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             let always_save = matches!(
                 msg,
                 MedMsg::ConfirmDelete
-                    | MedMsg::ToggleArchive(_)
+                    | MedMsg::ConfirmArchive
+                    | MedMsg::ConfirmUnarchive
                     | MedMsg::Edit(EditMsg::SaveSchedule)
                     | MedMsg::Edit(EditMsg::DeleteSchedule(_))
             );
             let should_generate = matches!(
                 msg,
-                MedMsg::ToggleArchive(_)
+                MedMsg::ConfirmArchive
+                    | MedMsg::ConfirmUnarchive
                     | MedMsg::Edit(EditMsg::SaveSchedule)
                     | MedMsg::Edit(EditMsg::DeleteSchedule(_))
             );
