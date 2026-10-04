@@ -17,7 +17,10 @@ impl ksni::Tray for WaylandTray {
     }
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
-        let mut rgba = vec![0x2e_u8, 0xcc, 0x71, 0xff].repeat(24 * 24);
+        let Some(mut rgba) = crate::branding::tray_icon_rgba() else {
+            eprintln!("[tray-wayland] Could not load icons/med-tracker-tray.png");
+            return Vec::new();
+        };
         for pixel in rgba.chunks_exact_mut(4) {
             pixel.rotate_right(1);
         }

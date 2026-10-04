@@ -15,6 +15,7 @@ pub enum Message {
     TrayLeftClick,
     TrayRightClick { x: f64, y: f64 },
     TrayMenuShow,
+    TrayHostChanged(Option<u32>),
     CloseRequested(iced::window::Id),
     WindowOpened(iced::window::Id),
     Quit,

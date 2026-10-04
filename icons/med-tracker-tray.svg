@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <clipPath id="capsule-shape">
+      <rect x="-43" y="-14" width="86" height="28" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <g transform="rotate(-7 64 56)">
+    <rect x="13" y="19" width="102" height="84" rx="16" fill="#f7fff9" stroke="#174d56" stroke-width="6"/>
+    <path d="M13 43h102M64 43v57M14 71h99" fill="none" stroke="#83c4b2" stroke-width="5"/>
+    <path d="M29 46h24M77 46h23M29 76h24M77 76h23" stroke="#d3eee2" stroke-width="14" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(66 78) rotate(-34)">
+    <g clip-path="url(#capsule-shape)">
+      <rect x="-43" y="-14" width="43" height="28" fill="#fffdf5"/>
+      <rect x="0" y="-14" width="43" height="28" fill="#ff9273"/>
+      <path d="M0-13v26" stroke="#174d56" stroke-width="3"/>
+    </g>
+    <rect x="-43" y="-14" width="86" height="28" rx="14" fill="none" stroke="#174d56" stroke-width="4"/>
+  </g>
+</svg>

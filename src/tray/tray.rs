@@ -1,8 +1,9 @@
 use tray::{Icon, TrayIcon, TrayIconBuilder};
+use x11rb::protocol::xproto::ConnectionExt;
 
-fn placeholder_icon() -> Icon {
-    let rgba = vec![0x2e_u8, 0xcc, 0x71, 0xff].repeat(24 * 24);
-    Icon::from_rgba(rgba, 24, 24).expect("placeholder icon is valid")
+fn tray_icon() -> Option<Icon> {
+    let rgba = crate::branding::tray_icon_rgba()?;
+    Icon::from_rgba(rgba, 24, 24).ok()
 }
 
 pub fn is_wayland() -> bool {
@@ -11,12 +12,32 @@ pub fn is_wayland() -> bool {
         .unwrap_or(false)
 }
 
+pub fn system_tray_owner() -> Result<Option<u32>, String> {
+    let (connection, _) = x11rb::connect(None).map_err(|error| error.to_string())?;
+    let atom = connection
+        .intern_atom(false, b"_NET_SYSTEM_TRAY_S0")
+        .map_err(|error| error.to_string())?
+        .reply()
+        .map_err(|error| error.to_string())?
+        .atom;
+    let owner = connection
+        .get_selection_owner(atom)
+        .map_err(|error| error.to_string())?
+        .reply()
+        .map_err(|error| error.to_string())?
+        .owner;
+    Ok((owner != x11rb::NONE).then_some(owner))
+}
+
 pub fn create_tray() -> Option<TrayIcon> {
     if is_wayland() {
         return None;
     }
 
-    let icon = placeholder_icon();
+    let Some(icon) = tray_icon() else {
+        eprintln!("[tray] Could not load icons/med-tracker-tray.png");
+        return None;
+    };
 
     match TrayIconBuilder::new()
         .with_tooltip("Med-Tracker")

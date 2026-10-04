@@ -1,5 +1,6 @@
 mod application;
 mod audio;
+mod branding;
 mod notify;
 mod persistence;
 mod tray;
@@ -44,6 +45,13 @@ fn main() {
                     update_time(state),
                     iced::window::close_requests().map(Message::CloseRequested),
                     tray_subscription(state.tray_icon.is_some()),
+                    if state.settings.is_minimize_to_tray {
+                        crate::tray::x11_status::x11_tray_status_subscription(
+                            state.tray_icon.is_some(),
+                        )
+                    } else {
+                        iced::Subscription::none()
+                    },
                 ])
             }
         })
@@ -104,6 +112,7 @@ fn main_window_settings() -> iced::window::Settings {
     iced::window::Settings {
         size: Size::new(1000.0, 640.0),
         position: iced::window::Position::Centered,
+        icon: crate::branding::app_window_icon(),
         exit_on_close_request: false,
         ..Default::default()
     }
@@ -238,6 +247,16 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 Task::none()
             };
             Task::batch([close_popup, show_main_window(state)])
+        }
+        Message::TrayHostChanged(owner) => {
+            if !state.settings.is_minimize_to_tray {
+                return Task::none();
+            }
+            state.tray_icon = None;
+            if owner.is_some() {
+                state.tray_icon = create_tray();
+            }
+            Task::none()
         }
         Message::WindowOpened(_) => Task::none(),
         Message::Quit => iced::exit(),
