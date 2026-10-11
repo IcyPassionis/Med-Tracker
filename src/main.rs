@@ -170,6 +170,10 @@ fn main_window_settings() -> iced::window::Settings {
         size: Size::new(1000.0, 640.0),
         position: iced::window::Position::Centered,
         icon: crate::branding::app_window_icon(),
+        platform_specific: iced::window::settings::PlatformSpecific {
+            application_id: String::from("med-tracker"),
+            ..Default::default()
+        },
         exit_on_close_request: false,
         ..Default::default()
     }
