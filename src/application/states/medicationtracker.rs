@@ -55,6 +55,9 @@ impl MedicationTracker {
         true
     }
 
+    /// Removes auto-generated, untouched records scheduled strictly after today
+    /// for one medication. History (past records, taken/skipped/missed records)
+    /// and manually rescheduled records are kept. Today's records are kept.
     pub fn remove_future_empty_records(&mut self, medication_id: &str) -> usize {
         let today = Local::now().date_naive();
         let before = self.records.len();
@@ -375,5 +378,58 @@ mod tests {
                 .unwrap()
                 .is_muted
         );
+    }
+
+    #[test]
+    fn archive_cleanup_removes_only_empty_future_records() {
+        let mut tracker = MedicationTracker::new();
+        let medication = Medication::new("Archived".into(), 10.0);
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+        let other_medication = Medication::new("Other".into(), 10.0);
+        let other_id = other_medication.id.clone();
+        tracker.medications.push(other_medication);
+
+        let future = Utc::now() + Duration::days(2);
+        let past = Utc::now() - Duration::days(1);
+
+        let today_pending = Record::new(medication_id.clone(), "s1".into(), Utc::now());
+        let future_pending = Record::new(medication_id.clone(), "s1".into(), future);
+        let mut future_rescheduled = Record::new(medication_id.clone(), "s1".into(), future);
+        future_rescheduled.rescheduled = true;
+        let mut future_taken = Record::new(medication_id.clone(), "s1".into(), future);
+        future_taken.occurrence_status = OccurrenceStatus::Taken {
+            taken_at: Utc::now(),
+        };
+        let past_pending = Record::new(medication_id.clone(), "s1".into(), past);
+        let other_pending = Record::new(other_id, "s2".into(), future);
+        let one_time = Record::new_one_time("Extra".into(), 1.0, DoseType::Unit, future);
+
+        let kept_ids = [
+            today_pending.id.clone(),
+            future_rescheduled.id.clone(),
+            future_taken.id.clone(),
+            past_pending.id.clone(),
+            other_pending.id.clone(),
+            one_time.id.clone(),
+        ];
+        let removed_id = future_pending.id.clone();
+        tracker.records.extend([
+            today_pending,
+            future_pending,
+            future_rescheduled,
+            future_taken,
+            past_pending,
+            other_pending,
+            one_time,
+        ]);
+
+        let removed = tracker.remove_future_empty_records(&medication_id);
+
+        assert_eq!(removed, 1);
+        assert!(!tracker.records.iter().any(|r| r.id == removed_id));
+        for id in kept_ids {
+            assert!(tracker.records.iter().any(|r| r.id == id));
+        }
     }
 }

@@ -45,6 +45,12 @@ impl From<&Settings> for PersistedSettings {
 }
 
 impl PersistedSettings {
+    fn with_auto_startup(settings: &Settings, enabled: bool) -> Self {
+        let mut persisted = Self::from(settings);
+        persisted.is_auto_startup = enabled;
+        persisted
+    }
+
     fn into_runtime(self) -> Settings {
         let defaults = Settings::new();
         let sound_volume = if self.sound_volume.is_finite() {
@@ -77,12 +83,23 @@ fn theme_from_name(name: &str) -> Option<Theme> {
 }
 
 pub fn save_settings(settings: &Settings) -> Result<(), io::Error> {
+    save_persisted_settings(PersistedSettings::from(settings))
+}
+
+pub fn save_settings_with_auto_startup(
+    settings: &Settings,
+    enabled: bool,
+) -> Result<(), io::Error> {
+    save_persisted_settings(PersistedSettings::with_auto_startup(settings, enabled))
+}
+
+fn save_persisted_settings(settings: PersistedSettings) -> Result<(), io::Error> {
     let dir = super::data_dir().ok_or(io::Error::new(
         io::ErrorKind::NotFound,
         "Could not find data directory",
     ))?;
     fs::create_dir_all(&dir)?;
-    let json = serde_json::to_string_pretty(&PersistedSettings::from(settings))?;
+    let json = serde_json::to_string_pretty(&settings)?;
     let tmp_path = dir.join("settings.json.tmp");
     fs::write(&tmp_path, json)?;
     fs::rename(tmp_path, dir.join("settings.json"))?;
@@ -160,5 +177,16 @@ mod tests {
         assert_eq!(restored.language, "English");
         assert!(restored.sound_enabled);
         assert_eq!(restored.alarm_time_minutes, 15);
+    }
+
+    #[test]
+    fn startup_override_changes_only_the_serialized_startup_preference() {
+        let settings = Settings::new();
+        let persisted = PersistedSettings::with_auto_startup(&settings, true);
+
+        assert!(persisted.is_auto_startup);
+        assert_eq!(persisted.font_size, settings.font_size);
+        assert_eq!(persisted.language, settings.language);
+        assert_eq!(persisted.is_minimize_to_tray, settings.is_minimize_to_tray);
     }
 }

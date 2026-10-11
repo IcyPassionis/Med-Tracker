@@ -10,8 +10,13 @@ pub struct App {
     pub system_theme: iced::Theme,
     pub medicationtracker: MedicationTracker,
     pub window_id: Option<iced::window::Id>,
-    pub popup_window_id: Option<iced::window::Id>,
-    pub tray_icon: Option<tray::TrayIcon>,
+    pub tray_backend: Option<crate::tray::backend::TrayBackend>,
+    pub tray_ready: bool,
+    pub tray_generation: u64,
+    pub tray_loss_generation: u64,
+    pub startup_waiting_for_tray: bool,
+    pub resource_startup_error: Option<String>,
+    pub startup_registration_error: Option<String>,
     pub sidebar_visible: bool,
 }
 impl App {
@@ -23,8 +28,13 @@ impl App {
             uistate: UIState::new(),
             medicationtracker: MedicationTracker::new(),
             window_id: None,
-            popup_window_id: None,
-            tray_icon: None,
+            tray_backend: None,
+            tray_ready: false,
+            tray_generation: 0,
+            tray_loss_generation: 0,
+            startup_waiting_for_tray: false,
+            resource_startup_error: None,
+            startup_registration_error: None,
             sidebar_visible: true,
         }
     }
@@ -42,8 +52,13 @@ impl Default for App {
             uistate: UIState::new(),
             medicationtracker: MedicationTracker::new(),
             window_id: None,
-            popup_window_id: None,
-            tray_icon: None,
+            tray_backend: None,
+            tray_ready: false,
+            tray_generation: 0,
+            tray_loss_generation: 0,
+            startup_waiting_for_tray: false,
+            resource_startup_error: None,
+            startup_registration_error: None,
             sidebar_visible: true,
         }
     }

@@ -1,5 +1,5 @@
-use iced::widget::{button, column, container, text};
-use iced::{self as ice, window, Element, Length::Fill, Theme};
+use iced::widget::{column, container, text};
+use iced::{self as ice, Element, Length::Fill, Theme, window};
 
 use crate::application::app::App;
 use crate::application::message::Message;
@@ -11,15 +11,26 @@ pub fn title(_state: &App, _window_id: window::Id) -> String {
     String::from("Med-Tracker")
 }
 
-pub fn view(state: &App, window_id: window::Id) -> Element<Message> {
-    if Some(window_id) == state.popup_window_id {
-        tray_popup_view()
-    } else {
-        main_view(state)
-    }
+pub fn view(state: &App, _window_id: window::Id) -> Element<Message> {
+    main_view(state)
 }
 
 fn main_view(state: &App) -> Element<Message> {
+    let mut content = column![].width(Fill).height(Fill);
+    if let Some(error) = &state.resource_startup_error {
+        content = content.push(
+            container(text(error.clone()).size(14))
+                .padding(10)
+                .width(Fill),
+        );
+    }
+    if let Some(error) = &state.startup_registration_error {
+        content = content.push(
+            container(text(format!("Login startup could not be reconciled: {error}")).size(14))
+                .padding(10)
+                .width(Fill),
+        );
+    }
     let mut children = vec![];
     if state.sidebar_visible {
         children.push(side_bar(&state.state.panel));
@@ -28,26 +39,8 @@ fn main_view(state: &App) -> Element<Message> {
         children.push(collapsed_sidebar());
         children.push(sidebar_border());
     }
-    children.push(main_content(state));
+    children.push(content.push(main_content(state)).into());
     row(children).width(Fill).height(Fill).into()
-}
-
-fn tray_popup_view() -> Element<'static, Message> {
-    container(
-        column![
-            button(text("Show Application").center())
-                .width(Fill)
-                .on_press(Message::TrayMenuShow),
-            button(text("Exit").center())
-                .width(Fill)
-                .on_press(Message::Quit),
-        ]
-        .spacing(4),
-    )
-    .width(Fill)
-    .height(Fill)
-    .padding(8)
-    .into()
 }
 
 pub fn theme(state: &App, _window_id: window::Id) -> Option<Theme> {

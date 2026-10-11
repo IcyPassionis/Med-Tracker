@@ -1,4 +1,4 @@
-pub mod subscription;
-pub mod tray;
-pub mod wayland;
-pub mod x11_status;
+pub mod backend;
+#[path = "wayland.rs"]
+pub mod status_notifier;
+pub mod x11_native;

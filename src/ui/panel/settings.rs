@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use iced::widget::{
-    Image, button, column, container, pick_list, row, scrollable, slider, text, text_input,
-    toggler,
+    Image, button, column, container, pick_list, row, scrollable, slider, text, text_input, toggler,
 };
 use iced::{ContentFit, Element, Fill, Length, Theme, alignment};
 
@@ -14,17 +13,23 @@ use crate::ui::style::settings::container::{setting_row as setting_row_style, se
 #[derive(Debug, Clone)]
 pub struct Settingsui {
     section: Section,
+    auto_startup_error: Option<String>,
 }
 
 impl Settingsui {
     pub fn new() -> Settingsui {
         Self {
             section: Section::Main,
+            auto_startup_error: None,
         }
     }
 
     pub fn set_section_to_main(&mut self) {
         self.section = Section::Main;
+    }
+
+    pub fn set_auto_startup_error(&mut self, error: Option<String>) {
+        self.auto_startup_error = error;
     }
 
     pub fn view<'a>(&self, settings: &'a Settings) -> Element<'a, Message> {
@@ -196,6 +201,22 @@ impl Settingsui {
             .on_input(Message::SetAlarmTime)
             .width(Length::Fixed(100.0));
 
+        let auto_startup_setting = column![setting_row(
+            "Start with system",
+            "Launch Med-Tracker when you log in to your desktop.".to_string(),
+            auto_startup.into(),
+        )]
+        .spacing(6);
+        let auto_startup_setting = if let Some(error) = &self.auto_startup_error {
+            auto_startup_setting.push(text(error.clone()).size(13).style(|theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                }
+            }))
+        } else {
+            auto_startup_setting
+        };
+
         self.detail_view(
             "System",
             "icons/settings.png",
@@ -205,11 +226,7 @@ impl Settingsui {
                     "Keep the application available from the system tray.".to_string(),
                     minimize_to_tray.into(),
                 ),
-                setting_row(
-                    "Start with system",
-                    "Launch Med-Tracker when the system starts.".to_string(),
-                    auto_startup.into(),
-                ),
+                auto_startup_setting,
                 setting_row(
                     "Alarm time",
                     "Keep alarms active for this many minutes after the scheduled time. Set to 0 for infinity.".to_string(),
@@ -235,9 +252,9 @@ impl Settingsui {
                         .width(24)
                         .height(24),
                 )
-                    .style(bordered_button)
-                    .padding(10)
-                    .on_press(Message::BackToMain),
+                .style(bordered_button)
+                .padding(10)
+                .on_press(Message::BackToMain),
             )
             .width(Length::FillPortion(1)),
             container(
@@ -403,12 +420,10 @@ fn centered_scrollable<'a>(content: impl Into<Element<'a, Message>>) -> Element<
         .max_width(760)
         .padding([24, 0]);
 
-    scrollable(
-        container(content).width(Fill).center_x(Fill),
-    )
-    .width(Fill)
-    .height(Fill)
-    .into()
+    scrollable(container(content).width(Fill).center_x(Fill))
+        .width(Fill)
+        .height(Fill)
+        .into()
 }
 
 fn category_card<'a>(

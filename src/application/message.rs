@@ -12,13 +12,21 @@ pub enum Message {
     Calendar(calendar::calendarui::Message),
     Alarm(alarm::Message),
     TimeCheck,
-    TrayLeftClick,
-    TrayRightClick { x: f64, y: f64 },
-    TrayMenuShow,
-    TrayHostChanged(Option<u32>),
+    Tray {
+        backend: crate::tray::backend::TrayBackend,
+        generation: u64,
+        event: crate::tray::backend::TrayEvent,
+    },
+    ShowRequested,
+    TrayStartupTimeout {
+        generation: u64,
+    },
+    TrayLossTimeout {
+        generation: u64,
+        loss_generation: u64,
+    },
     CloseRequested(iced::window::Id),
     WindowOpened(iced::window::Id),
-    Quit,
     HideSidebar,
     OpenSidebar,
 }
