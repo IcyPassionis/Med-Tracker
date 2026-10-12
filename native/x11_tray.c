@@ -227,7 +227,8 @@ int med_tracker_x11_tray_run(TrayEventCallback callback, void *user_data,
     gtk_status_icon_set_visible(status_icon, FALSE);
     g_signal_connect(status_icon, "activate", G_CALLBACK(on_activate), NULL);
     g_signal_connect(status_icon, "popup-menu", G_CALLBACK(on_popup_menu), NULL);
-    g_signal_connect(status_icon, "notify::is-embedded",
+    /* The property is "embedded"; "is_embedded" is only the getter name. */
+    g_signal_connect(status_icon, "notify::embedded",
                      G_CALLBACK(on_embedded_changed), NULL);
 
     menu = gtk_menu_new();
