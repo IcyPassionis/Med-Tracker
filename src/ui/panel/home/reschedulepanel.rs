@@ -18,6 +18,7 @@ pub struct ReschedulePanel {
 #[derive(Debug, Clone)]
 pub enum Message {
     Open(String),
+    OpenMany(Vec<String>),
     HourChange(String),
     MinuteChange(String),
     Confirm,
@@ -87,6 +88,15 @@ impl ReschedulePanel {
 
         let mut content = column![header, time_row].spacing(20);
 
+        if self.record_ids.len() > 1 {
+            let count_text = format!("Rescheduling {} records", self.record_ids.len());
+            content = content.push(text(count_text).size(13).style(|theme: &iced::Theme| {
+                iced::widget::text::Style {
+                    color: Some(theme.extended_palette().background.weak.text),
+                }
+            }));
+        }
+
         if let Some(warning) = &self.warning {
             let warning_text =
                 text(warning)
@@ -114,6 +124,7 @@ impl ReschedulePanel {
     pub fn update(&mut self, tracker: &mut MedicationTracker, msg: Message) -> Option<Vec<String>> {
         match msg {
             Message::Open(id) => self.handle_open(tracker, id),
+            Message::OpenMany(ids) => self.handle_open_many(tracker, ids),
             Message::HourChange(v) => self.handle_hour_change(v),
             Message::MinuteChange(v) => self.handle_minute_change(v),
             Message::Confirm => self.handle_confirm(tracker),
@@ -122,9 +133,25 @@ impl ReschedulePanel {
     }
 
     fn handle_open(&mut self, tracker: &MedicationTracker, id: String) -> Option<Vec<String>> {
-        if let Some(record) = tracker.records.iter().find(|r| r.id == id) {
-            self.open(id, record.time);
-        }
+        self.handle_open_many(tracker, vec![id])
+    }
+
+    /// Opens the overlay for every record in `ids`, prefilled with the time of
+    /// the first record that still exists.
+    fn handle_open_many(
+        &mut self,
+        tracker: &MedicationTracker,
+        ids: Vec<String>,
+    ) -> Option<Vec<String>> {
+        let record_ids: Vec<String> = ids
+            .into_iter()
+            .filter(|id| tracker.records.iter().any(|record| &record.id == id))
+            .collect();
+        let time = record_ids
+            .first()
+            .and_then(|id| tracker.records.iter().find(|record| &record.id == id))
+            .map(|record| record.time)?;
+        self.open_many(record_ids, time);
         None
     }
 
@@ -185,5 +212,63 @@ impl ReschedulePanel {
     fn clear_inputs(&mut self) {
         self.hour.clear();
         self.minute.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::medication::dosetype::DoseType;
+    use crate::application::medication::occurrencestatus::OccurrenceStatus;
+    use chrono::{Local, NaiveDate};
+
+    fn local_utc(date: NaiveDate, hour: u32, minute: u32) -> DateTime<Utc> {
+        Local
+            .from_local_datetime(&date.and_hms_opt(hour, minute, 0).unwrap())
+            .single()
+            .expect("test time must exist in the local timezone")
+            .with_timezone(&Utc)
+    }
+
+    #[test]
+    fn open_many_reschedules_every_group_record_to_the_entered_time() {
+        let mut tracker = MedicationTracker::new();
+        let date = NaiveDate::from_ymd_opt(2026, 5, 10).unwrap();
+        let group_time = local_utc(date, 12, 0);
+        let ids: Vec<String> = ["A", "B", "C"]
+            .iter()
+            .map(|name| {
+                tracker.insert_one_time_record((*name).to_string(), 1.0, DoseType::Unit, group_time)
+            })
+            .collect();
+
+        let mut panel = ReschedulePanel::new();
+        panel.update(&mut tracker, Message::OpenMany(ids.clone()));
+        panel.update(&mut tracker, Message::HourChange("09".into()));
+        panel.update(&mut tracker, Message::MinuteChange("45".into()));
+        let mut rescheduled = panel
+            .update(&mut tracker, Message::Confirm)
+            .expect("confirm returns the affected ids");
+
+        rescheduled.sort();
+        let mut expected = ids.clone();
+        expected.sort();
+        assert_eq!(rescheduled, expected);
+
+        for id in &ids {
+            let record = tracker
+                .records
+                .iter()
+                .find(|record| record.id == *id)
+                .unwrap();
+            let local = record.time.with_timezone(&Local);
+            assert_eq!(local.date_naive(), date);
+            assert_eq!((local.hour(), local.minute()), (9, 45));
+            assert!(record.rescheduled);
+            assert!(matches!(
+                record.occurrence_status,
+                OccurrenceStatus::Pending
+            ));
+        }
     }
 }

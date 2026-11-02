@@ -251,12 +251,19 @@ impl TimeUI {
             let schedule_label = text(hour_minute).size(32).width(Fill);
             let record_ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
             let all_muted = records.iter().all(|record| record.is_muted);
+            let reschedule_button = button(button_with_icon!("icons/clock.png", 32, 10))
+                .style(style::time::button::record_action_button)
+                .padding(10)
+                .on_press(Message::Reschedule(
+                    super::reschedulepanel::Message::OpenMany(record_ids.clone()),
+                ));
             let sound_button = button(button_with_icon!(mute_icon(all_muted), 32, 10))
                 .style(style::time::button::record_action_button)
                 .padding(10)
                 .on_press(Message::ToggleSound(record_ids));
-            let schedule_header =
-                row![schedule_label, sound_button].align_y(alignment::Vertical::Center);
+            let schedule_header = row![schedule_label, reschedule_button, sound_button]
+                .spacing(10)
+                .align_y(alignment::Vertical::Center);
             schedule_container_column = schedule_container_column.push(schedule_header);
 
             let mut medications_list = column![].spacing(10).padding([0, 20]);
