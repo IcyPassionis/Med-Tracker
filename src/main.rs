@@ -23,7 +23,7 @@ use crate::update::time_check::{check_medication_schedule, check_new_day, update
 use application::panel::Panel;
 use chrono;
 use std::sync::OnceLock;
-use ui::panel::{alarm, home, medications, settings};
+use ui::panel::{alarm, home, medicationadd, medications, settings};
 
 static RESOURCE_STARTUP_ERROR: OnceLock<Option<String>> = OnceLock::new();
 
@@ -560,7 +560,11 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             );
             let should_generate = matches!(
                 msg,
-                home::time::Message::MedicationAdd(home::medicationaddpanel::Message::Done)
+                home::time::Message::MedicationAdd(
+                    medicationadd::Message::SaveSchedule
+                        | medicationadd::Message::DeleteSchedule(_)
+                        | medicationadd::Message::Done
+                )
             );
             let (task, one_time_created) = state
                 .uistate
@@ -583,6 +587,7 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             task
         }
         Message::Medications(msg) => {
+            use crate::ui::panel::medicationadd::Message as AddMsg;
             use crate::ui::panel::medications::editpanel::Message as EditMsg;
             use medications::medicationsmain::Message as MedMsg;
             let always_save = matches!(
@@ -592,6 +597,12 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                     | MedMsg::ConfirmUnarchive
                     | MedMsg::Edit(EditMsg::SaveSchedule)
                     | MedMsg::Edit(EditMsg::DeleteSchedule(_))
+                    | MedMsg::AddPanel(
+                        AddMsg::AddMedication
+                            | AddMsg::SaveSchedule
+                            | AddMsg::DeleteSchedule(_)
+                            | AddMsg::Done
+                    )
             );
             let should_generate = matches!(
                 msg,
@@ -599,6 +610,9 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                     | MedMsg::ConfirmUnarchive
                     | MedMsg::Edit(EditMsg::SaveSchedule)
                     | MedMsg::Edit(EditMsg::DeleteSchedule(_))
+                    | MedMsg::AddPanel(
+                        AddMsg::SaveSchedule | AddMsg::DeleteSchedule(_) | AddMsg::Done
+                    )
             );
             state
                 .uistate

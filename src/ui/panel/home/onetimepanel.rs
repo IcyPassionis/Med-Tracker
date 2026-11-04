@@ -9,9 +9,25 @@ use iced::Length::{Fill, FillPortion};
 use iced::widget::{Image, button, column, container, pick_list, row, text, text_input};
 use iced::{ContentFit, Element, Padding, Theme, alignment};
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum NameChoice {
+    New,
+    Existing { id: String, label: String },
+}
+
+impl std::fmt::Display for NameChoice {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::New => write!(formatter, "Create New"),
+            Self::Existing { label, .. } => write!(formatter, "{label}"),
+        }
+    }
+}
+
 pub struct OneTimeRecordPanel {
     open: bool,
     name: String,
+    selected_name: NameChoice,
     dose: String,
     dose_type: DoseType,
     hour: String,
@@ -24,6 +40,7 @@ pub enum Message {
     Open,
     Close,
     NameChange(String),
+    NameChoiceChange(NameChoice),
     DoseChange(String),
     DoseTypeChange(DoseType),
     HourChange(String),
@@ -37,6 +54,7 @@ impl OneTimeRecordPanel {
         Self {
             open: false,
             name: String::new(),
+            selected_name: NameChoice::New,
             dose: String::new(),
             dose_type: DoseType::Mg,
             hour: String::new(),
@@ -45,13 +63,17 @@ impl OneTimeRecordPanel {
         }
     }
 
-    pub fn view(&self, selected_date: NaiveDate) -> Option<Element<'_, Message>> {
+    pub fn view<'a>(
+        &'a self,
+        tracker: &'a MedicationTracker,
+        selected_date: NaiveDate,
+    ) -> Option<Element<'a, Message>> {
         if !self.open {
             return None;
         }
 
         Some(
-            container(container(self.form_overlay(selected_date)).center(Fill))
+            container(container(self.form_overlay(tracker, selected_date)).center(Fill))
                 .style(backdrop)
                 .width(Fill)
                 .height(Fill)
@@ -76,7 +98,27 @@ impl OneTimeRecordPanel {
                 false
             }
             Message::NameChange(value) => {
-                self.name = value;
+                if matches!(self.selected_name, NameChoice::New) {
+                    self.name = value;
+                }
+                false
+            }
+            Message::NameChoiceChange(choice) => {
+                if matches!(self.selected_name, NameChoice::Existing { .. })
+                    && matches!(choice, NameChoice::New)
+                {
+                    self.name.clear();
+                }
+                if let NameChoice::Existing { id, .. } = &choice
+                    && let Some(medication) = tracker
+                        .medications
+                        .iter()
+                        .find(|medication| medication.id == *id)
+                {
+                    self.name = medication.name.clone();
+                    self.dose_type = medication.dose_type;
+                }
+                self.selected_name = choice;
                 false
             }
             Message::DoseChange(value) => {
@@ -177,6 +219,7 @@ impl OneTimeRecordPanel {
 
     fn clear_fields(&mut self) {
         self.name.clear();
+        self.selected_name = NameChoice::New;
         self.dose.clear();
         self.dose_type = DoseType::Mg;
         self.hour.clear();
@@ -184,7 +227,11 @@ impl OneTimeRecordPanel {
         self.warning = None;
     }
 
-    fn form_overlay(&self, selected_date: NaiveDate) -> Element<'_, Message> {
+    fn form_overlay<'a>(
+        &'a self,
+        tracker: &'a MedicationTracker,
+        selected_date: NaiveDate,
+    ) -> Element<'a, Message> {
         let header = row![
             text("One-Time Record").size(32).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
@@ -193,11 +240,47 @@ impl OneTimeRecordPanel {
         ]
         .align_y(alignment::Vertical::Center);
 
-        let name_field = column![
-            text("Name").size(16),
-            text_input("Enter record name...", &self.name).on_input(Message::NameChange),
-        ]
-        .spacing(8);
+        let name_field: Element<'a, Message> = if tracker.medications.is_empty() {
+            column![
+                text("Name").size(16),
+                text_input("Enter record name...", &self.name).on_input(Message::NameChange),
+            ]
+            .spacing(8)
+            .into()
+        } else {
+            let mut choices = vec![NameChoice::New];
+            choices.extend(
+                tracker
+                    .medications
+                    .iter()
+                    .map(|medication| NameChoice::Existing {
+                        id: medication.id.clone(),
+                        label: if medication.is_archived {
+                            format!("{} (archived)", medication.name)
+                        } else {
+                            medication.name.clone()
+                        },
+                    }),
+            );
+            let mut field = column![
+                text("Name").size(16),
+                pick_list(
+                    choices,
+                    Some(self.selected_name.clone()),
+                    Message::NameChoiceChange,
+                )
+                .width(Fill),
+            ]
+            .spacing(8);
+            if matches!(self.selected_name, NameChoice::New) {
+                field = field.push(
+                    text_input("Enter record name...", &self.name).on_input(Message::NameChange),
+                );
+            } else {
+                field = field.push(text(format!("Recording for {}", self.name)).size(14));
+            }
+            field.into()
+        };
 
         let dose_field = column![
             text("Dose").size(16),
@@ -301,6 +384,7 @@ impl OneTimeRecordPanel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::medication::medication::Medication;
     use crate::application::medication::occurrencestatus::OccurrenceStatus;
 
     #[test]
@@ -338,6 +422,54 @@ mod tests {
         assert_eq!(
             tracker.records[0].time.with_timezone(&Local).date_naive(),
             selected_date
+        );
+    }
+
+    #[test]
+    fn selecting_existing_medication_fills_name_without_creating_medication() {
+        let mut panel = OneTimeRecordPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let mut medication = Medication::new("Existing medicine".into(), 10.0);
+        medication.dose_type = DoseType::Ml;
+        let id = medication.id.clone();
+        tracker.medications.push(medication);
+        panel.open = true;
+        let selected_date = Local::now().date_naive();
+
+        assert!(!panel.update(
+            &mut tracker,
+            selected_date,
+            Message::NameChoiceChange(NameChoice::Existing {
+                id,
+                label: "Existing medicine".into(),
+            }),
+        ));
+        assert_eq!(panel.name, "Existing medicine");
+        assert!(matches!(panel.dose_type, DoseType::Ml));
+        assert_eq!(tracker.medications.len(), 1);
+    }
+
+    #[test]
+    fn new_one_time_name_does_not_create_a_medication() {
+        let mut panel = OneTimeRecordPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let selected_date = Local::now().date_naive();
+        panel.open = true;
+        panel.update(
+            &mut tracker,
+            selected_date,
+            Message::NameChange("Temporary medicine".into()),
+        );
+        panel.dose = "1".into();
+        panel.hour = "09".into();
+        panel.minute = "00".into();
+
+        assert!(panel.update(&mut tracker, selected_date, Message::SetAlarm));
+        assert_eq!(tracker.records.len(), 1);
+        assert!(tracker.medications.is_empty());
+        assert_eq!(
+            tracker.records[0].one_time.as_ref().unwrap().name,
+            "Temporary medicine"
         );
     }
 }

@@ -3,6 +3,7 @@ use crate::application::medication::occurrencestatus::OccurrenceStatus;
 use crate::application::medication::record::Record;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::{self, button_with_icon};
+use crate::ui::panel::medicationadd;
 use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::{record_status_container, schedule_container};
@@ -14,7 +15,7 @@ use iced::{ContentFit, Element, Padding, Task, alignment};
 
 pub struct TimeUI {
     pub selected_date: NaiveDate,
-    medication_panel: super::medicationaddpanel::MedicationAddPanel,
+    medication_panel: medicationadd::MedicationAddPanel,
     one_time_panel: super::onetimepanel::OneTimeRecordPanel,
     reschedule_panel: super::reschedulepanel::ReschedulePanel,
     taken_panel: super::takenpanel::TakenPanel,
@@ -28,7 +29,7 @@ impl TimeUI {
     pub fn new() -> TimeUI {
         Self {
             selected_date: Local::now().date_naive(),
-            medication_panel: super::medicationaddpanel::MedicationAddPanel::new(),
+            medication_panel: medicationadd::MedicationAddPanel::new(),
             one_time_panel: super::onetimepanel::OneTimeRecordPanel::new(),
             reschedule_panel: super::reschedulepanel::ReschedulePanel::new(),
             taken_panel: super::takenpanel::TakenPanel::new(),
@@ -56,7 +57,7 @@ impl TimeUI {
         };
 
         let base: Element<Message> =
-            if let Some(overlay) = self.one_time_panel.view(self.selected_date) {
+            if let Some(overlay) = self.one_time_panel.view(tracker, self.selected_date) {
                 stack![base, overlay.map(Message::OneTimeRecord)]
                     .width(Fill)
                     .height(Fill)
@@ -66,7 +67,7 @@ impl TimeUI {
             };
 
         let base: Element<Message> = if self.add_choice_open {
-            stack![base, self.add_choice_overlay()]
+            stack![base, self.add_choice_overlay(tracker)]
                 .width(Fill)
                 .height(Fill)
                 .into()
@@ -126,10 +127,16 @@ impl TimeUI {
                 self.add_choice_open = false;
                 Task::none()
             }
-            Message::OpenRegularMedication => {
+            Message::OpenNewMedication => {
                 self.add_choice_open = false;
                 self.medication_panel
-                    .update(state, super::medicationaddpanel::Message::Open);
+                    .update(state, medicationadd::Message::Open);
+                Task::none()
+            }
+            Message::OpenExistingMedication => {
+                self.add_choice_open = false;
+                self.medication_panel
+                    .update(state, medicationadd::Message::OpenExisting);
                 Task::none()
             }
             Message::OpenOneTimeRecord => {
@@ -405,7 +412,7 @@ impl TimeUI {
         Some((&medication.name, dose, medication.dose_type))
     }
 
-    fn add_choice_overlay(&self) -> Element<'_, Message> {
+    fn add_choice_overlay(&self, tracker: &MedicationTracker) -> Element<'_, Message> {
         let header = row![
             text("Add Record").size(28).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
@@ -415,19 +422,36 @@ impl TimeUI {
         ]
         .align_y(alignment::Vertical::Center);
 
-        let options = column![
-            button(container(text("Regular Medication")).center_x(Fill))
+        let mut options = column![
+            button(container(text("New Medication")).center_x(Fill))
                 .style(style::time::button::add_button)
                 .padding([15, 30])
                 .width(Fill)
-                .on_press(Message::OpenRegularMedication),
+                .on_press(Message::OpenNewMedication),
+        ]
+        .spacing(15);
+
+        if tracker
+            .medications
+            .iter()
+            .any(|medication| !medication.is_archived)
+        {
+            options = options.push(
+                button(container(text("Add Schedule to Existing")).center_x(Fill))
+                    .style(style::time::button::add_button)
+                    .padding([15, 30])
+                    .width(Fill)
+                    .on_press(Message::OpenExistingMedication),
+            );
+        }
+
+        options = options.push(
             button(container(text("One-Time Record")).center_x(Fill))
                 .style(style::time::button::add_button)
                 .padding([15, 30])
                 .width(Fill)
                 .on_press(Message::OpenOneTimeRecord),
-        ]
-        .spacing(15);
+        );
 
         let panel = container(column![header, options].spacing(20).padding(30))
             .style(crate::ui::style::time::container::overlay_panel_container)
@@ -540,11 +564,12 @@ impl TimeUI {
 #[derive(Debug, Clone)]
 pub enum Message {
     SelectDay(NaiveDate),
-    MedicationAdd(super::medicationaddpanel::Message),
+    MedicationAdd(medicationadd::Message),
     OneTimeRecord(super::onetimepanel::Message),
     OpenAddChoice,
     CloseAddChoice,
-    OpenRegularMedication,
+    OpenNewMedication,
+    OpenExistingMedication,
     OpenOneTimeRecord,
     AskDelete(String),
     ConfirmDelete(String),

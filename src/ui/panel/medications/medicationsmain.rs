@@ -1,5 +1,6 @@
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::{button_with_icon, button_with_icon_text};
+use crate::ui::panel::medicationadd;
 use crate::ui::panel::medications::{editpanel, refillpanel};
 use crate::ui::style;
 use crate::ui::style::medications::button as med_button;
@@ -15,6 +16,7 @@ pub struct Record {
     show_archived: bool,
     pub edit_panel: editpanel::MedicationEditPanel,
     pub refill_panel: refillpanel::RefillPanel,
+    pub add_panel: medicationadd::MedicationAddPanel,
 }
 
 impl Record {
@@ -26,6 +28,7 @@ impl Record {
             show_archived: false,
             edit_panel: editpanel::MedicationEditPanel::new(),
             refill_panel: refillpanel::RefillPanel::new(),
+            add_panel: medicationadd::MedicationAddPanel::new(),
         }
     }
 
@@ -55,6 +58,10 @@ impl Record {
 
         if let Some(overlay) = self.refill_panel.view() {
             layers.push(overlay.map(Message::Refill));
+        }
+
+        if let Some(overlay) = self.add_panel.view(tracker) {
+            layers.push(overlay.map(Message::AddPanel));
         }
 
         if layers.len() == 1 {
@@ -117,6 +124,12 @@ impl Record {
             Message::Refill(msg) => {
                 self.refill_panel.update(tracker, msg);
             }
+            Message::OpenAdd => {
+                self.add_panel.update(tracker, medicationadd::Message::Open);
+            }
+            Message::AddPanel(msg) => {
+                self.add_panel.update(tracker, msg);
+            }
         }
     }
 
@@ -129,7 +142,26 @@ impl Record {
             content = content.push(self.archived_toggle(archived_count));
         }
 
-        content.push(self.medication_list(tracker)).into()
+        content = content.push(self.medication_list(tracker));
+
+        if !self.show_archived {
+            content = content.push(self.add_medication_button());
+        }
+
+        content.into()
+    }
+
+    fn add_medication_button<'a>(&self) -> Element<'a, Message> {
+        container(
+            button(button_with_icon_text!("Add Medication", "icons/plus.png"))
+                .style(style::time::button::add_button)
+                .padding([12, 30])
+                .on_press(Message::OpenAdd),
+        )
+        .width(Fill)
+        .center_x(Fill)
+        .padding([12, 40])
+        .into()
     }
 
     fn archived_toggle<'a>(&self, archived_count: usize) -> Element<'a, Message> {
@@ -391,6 +423,8 @@ pub enum Message {
     ToggleArchivedView,
     OpenEdit(String),
     OpenRefill(String),
+    OpenAdd,
     Edit(editpanel::Message),
     Refill(refillpanel::Message),
+    AddPanel(medicationadd::Message),
 }

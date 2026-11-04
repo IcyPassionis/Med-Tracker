@@ -1,12 +1,13 @@
 use crate::application::medication::dosetype::DoseType;
 use crate::application::medication::medication::Medication;
+use crate::application::medication::occurrencestatus::OccurrenceStatus;
 use crate::application::medication::periodtype::PeriodType;
 use crate::application::medication::schedule::Schedule;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
 use crate::ui::style;
 use crate::ui::style::time::container::overlay_panel_container;
-use chrono::Weekday;
+use chrono::{Local, Weekday};
 use iced::ContentFit;
 use iced::Length::{Fill, FillPortion};
 use iced::widget::{
@@ -18,6 +19,7 @@ use iced::{self as ice, Background, Color, Element, Theme, alignment};
 pub enum Section {
     Hidden,
     AddMedication,
+    SelectMedication,
     ScheduleList,
     AddSchedule,
 }
@@ -31,6 +33,7 @@ pub enum ScheduleMode {
 pub struct MedicationAddPanel {
     pub section: Section,
     medication_name: String,
+    medication_name_error: Option<String>,
     medication_stock: String,
     medication_pill_dose: String,
     medication_dose_type: DoseType,
@@ -49,6 +52,8 @@ pub struct MedicationAddPanel {
 #[derive(Debug, Clone)]
 pub enum Message {
     Open,
+    OpenExisting,
+    SelectExisting(String),
     Close,
     MedicationNameChange(String),
     MedicationStockChange(String),
@@ -75,6 +80,7 @@ impl MedicationAddPanel {
         Self {
             section: Section::Hidden,
             medication_name: String::new(),
+            medication_name_error: None,
             medication_stock: String::new(),
             medication_pill_dose: String::new(),
             medication_dose_type: DoseType::Mg,
@@ -105,6 +111,12 @@ impl MedicationAddPanel {
                     .height(Fill)
                     .into(),
             ),
+            Section::SelectMedication => Some(
+                stack![self.backdrop(), self.select_medication_overlay(tracker)]
+                    .width(Fill)
+                    .height(Fill)
+                    .into(),
+            ),
             Section::ScheduleList => Some(
                 stack![self.backdrop(), self.schedule_list_overlay(tracker)]
                     .width(Fill)
@@ -122,9 +134,30 @@ impl MedicationAddPanel {
 
     pub fn update(&mut self, state: &mut MedicationTracker, message: Message) {
         match message {
-            Message::Open => self.section = Section::AddMedication,
+            Message::Open => {
+                self.reset_all();
+                self.section = Section::AddMedication;
+            }
+            Message::OpenExisting => {
+                self.reset_all();
+                self.section = Section::SelectMedication;
+            }
+            Message::SelectExisting(id) => {
+                let exists = state
+                    .medications
+                    .iter()
+                    .any(|m| m.id == id && !m.is_archived);
+                if exists {
+                    self.current_medication_id = Some(id);
+                    self.reset_schedule_fields();
+                    self.section = Section::ScheduleList;
+                }
+            }
             Message::Close => self.close(),
-            Message::MedicationNameChange(v) => self.medication_name = v,
+            Message::MedicationNameChange(v) => {
+                self.medication_name_error = None;
+                self.medication_name = v;
+            }
             Message::MedicationStockChange(v) => {
                 if v.is_empty() || v.chars().all(|c| c.is_ascii_digit() || c == '.') {
                     let dots = v.chars().filter(|c| *c == '.').count();
@@ -143,14 +176,24 @@ impl MedicationAddPanel {
             }
             Message::MedicationDoseTypeChange(v) => self.medication_dose_type = v,
             Message::AddMedication => {
+                let name = self.medication_name.trim().to_owned();
+                if name.is_empty() {
+                    self.medication_name_error = Some("Medication name cannot be empty.".into());
+                    return;
+                }
                 let stock: f32 = self.medication_stock.parse().unwrap_or(0.0);
-                let pill_dose: f32 = self.medication_pill_dose.parse().unwrap_or(1.0_f32).max(0.0);
-                let mut medication = Medication::new(self.medication_name.clone(), stock);
+                let pill_dose: f32 = self
+                    .medication_pill_dose
+                    .parse()
+                    .unwrap_or(1.0_f32)
+                    .max(0.0);
+                let mut medication = Medication::new(name, stock);
                 medication.pill_dose = pill_dose;
                 medication.dose_type = self.medication_dose_type;
                 self.current_medication_id = Some(medication.id.clone());
                 state.medications.push(medication);
                 self.medication_name = String::new();
+                self.medication_name_error = None;
                 self.medication_stock = String::new();
                 self.medication_pill_dose = String::new();
                 self.medication_dose_type = DoseType::Mg;
@@ -226,6 +269,7 @@ impl MedicationAddPanel {
                         med.schedules.retain(|s| s.id != id);
                     }
                 }
+                remove_future_records_for_schedule(state, &id);
             }
             Message::SaveSchedule => {
                 let hour: u8 = self.schedule_hour.parse().unwrap_or(0);
@@ -247,6 +291,9 @@ impl MedicationAddPanel {
                         (None, days)
                     }
                 };
+                if let Some(edit_id) = &self.editing_schedule_id {
+                    remove_future_records_for_schedule(state, edit_id);
+                }
                 if let Some(med_id) = &self.current_medication_id {
                     if let Some(med) = state.medications.iter_mut().find(|m| m.id == *med_id) {
                         if let Some(edit_id) = &self.editing_schedule_id {
@@ -255,6 +302,7 @@ impl MedicationAddPanel {
                                 s.period_time = period_time;
                                 s.period_type = period_type;
                                 s.week_day = week_day;
+                                s.dose = dose;
                             }
                         } else {
                             let mut new_schedule =
@@ -267,15 +315,13 @@ impl MedicationAddPanel {
                 self.reset_schedule_fields();
                 self.section = Section::ScheduleList;
             }
-            Message::Done => {
-                self.current_medication_id = None;
-                self.section = Section::Hidden;
-            }
+            Message::Done => self.close(),
         }
     }
 
     fn reset_all(&mut self) {
         self.medication_name = String::new();
+        self.medication_name_error = None;
         self.medication_stock = String::new();
         self.medication_pill_dose = String::new();
         self.medication_dose_type = DoseType::Mg;
@@ -315,12 +361,19 @@ impl MedicationAddPanel {
         ]
         .align_y(alignment::Vertical::Center);
 
-        let name_field = column![
+        let mut name_field = column![
             text("Medication Name").size(16),
             text_input("Enter medication name...", &self.medication_name)
                 .on_input(Message::MedicationNameChange),
         ]
         .spacing(8);
+        if let Some(error) = &self.medication_name_error {
+            name_field = name_field.push(text(error.clone()).size(13).style(|theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                }
+            }));
+        }
 
         let stock_field = column![
             text("Stock").size(16),
@@ -343,8 +396,7 @@ impl MedicationAddPanel {
 
         let pill_dose_field = column![
             text("Pill Dose").size(16),
-            text_input("1", &self.medication_pill_dose)
-                .on_input(Message::MedicationPillDoseChange),
+            text_input("1", &self.medication_pill_dose).on_input(Message::MedicationPillDoseChange),
         ]
         .spacing(8)
         .width(FillPortion(1));
@@ -367,6 +419,64 @@ impl MedicationAddPanel {
         let form = scrollable(form).height(Fill);
 
         let panel_content = column![header, form, add_btn]
+            .spacing(20)
+            .padding(30)
+            .height(Fill);
+
+        self.centered_panel(panel_content.into())
+    }
+
+    fn select_medication_overlay<'a>(
+        &self,
+        tracker: &'a MedicationTracker,
+    ) -> Element<'a, Message> {
+        let header = row![
+            column![
+                text("Add Schedule").size(32),
+                text("Select an existing medication").size(14),
+            ]
+            .spacing(2)
+            .width(Fill),
+            button(button_with_icon!("icons/cross.png", 30, 10))
+                .on_press(Message::Close)
+                .style(style::time::button::overlay_close_button)
+        ]
+        .align_y(alignment::Vertical::Center);
+
+        let active: Vec<&Medication> = tracker
+            .medications
+            .iter()
+            .filter(|medication| !medication.is_archived)
+            .collect();
+
+        let mut rows = column![].spacing(8);
+        if active.is_empty() {
+            rows = rows.push(text("No medications yet.").size(14));
+            rows = rows.push(
+                button("New Medication")
+                    .style(style::time::button::add_button)
+                    .padding([12, 30])
+                    .on_press(Message::Open),
+            );
+        } else {
+            for medication in active {
+                let id = medication.id.clone();
+                let label = column![
+                    text(&medication.name).size(18),
+                    text(format!("{} schedule(s)", medication.schedules.len())).size(13),
+                ]
+                .spacing(2);
+                rows = rows.push(
+                    button(label)
+                        .style(style::time::button::add_button)
+                        .padding([12, 20])
+                        .width(Fill)
+                        .on_press(Message::SelectExisting(id)),
+                );
+            }
+        }
+
+        let panel_content = column![header, scrollable(rows).height(Fill)]
             .spacing(20)
             .padding(30)
             .height(Fill);
@@ -503,7 +613,10 @@ impl MedicationAddPanel {
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Interval)),
             button("Weekdays")
-                .style(style::time::button::calendar_button(!interval_active, false))
+                .style(style::time::button::calendar_button(
+                    !interval_active,
+                    false
+                ))
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Weekdays)),
         ]
@@ -646,5 +759,148 @@ impl MedicationAddPanel {
         .width(Fill)
         .height(Fill)
         .into()
+    }
+}
+
+fn remove_future_records_for_schedule(state: &mut MedicationTracker, schedule_id: &str) {
+    let today = Local::now().date_naive();
+    state.records.retain(|record| {
+        !(record.schedule_id == schedule_id
+            && record.time.with_timezone(&Local).date_naive() >= today
+            && matches!(record.occurrence_status, OccurrenceStatus::Pending)
+            && !record.rescheduled)
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::medication::medication::Medication;
+    use crate::application::medication::record::Record;
+    use chrono::{Duration, Utc};
+
+    fn medication_with_schedule() -> (Medication, String) {
+        let mut medication = Medication::new("Existing medicine".into(), 10.0);
+        let schedule = Schedule::new([8, 0], Some(PeriodType::Daily), 1, 1.0);
+        let schedule_id = schedule.id.clone();
+        medication.schedules.push(schedule);
+        (medication, schedule_id)
+    }
+
+    #[test]
+    fn empty_medication_name_is_rejected() {
+        let mut panel = MedicationAddPanel::new();
+        let mut tracker = MedicationTracker::new();
+
+        panel.update(&mut tracker, Message::Open);
+        panel.update(&mut tracker, Message::MedicationNameChange("   ".into()));
+        panel.update(&mut tracker, Message::AddMedication);
+
+        assert!(tracker.medications.is_empty());
+        assert!(matches!(panel.section, Section::AddMedication));
+        assert!(panel.medication_name_error.is_some());
+    }
+
+    #[test]
+    fn existing_medication_can_be_selected_for_a_new_schedule() {
+        let mut panel = MedicationAddPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let (medication, _) = medication_with_schedule();
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+
+        panel.update(&mut tracker, Message::OpenExisting);
+        assert!(matches!(panel.section, Section::SelectMedication));
+
+        panel.update(&mut tracker, Message::SelectExisting(medication_id.clone()));
+        assert!(matches!(panel.section, Section::ScheduleList));
+        assert_eq!(tracker.medications.len(), 1);
+        assert_eq!(tracker.medications[0].id, medication_id);
+        assert_eq!(tracker.medications[0].schedules.len(), 1);
+    }
+
+    #[test]
+    fn saving_schedule_to_existing_medication_does_not_create_another_medication() {
+        let mut panel = MedicationAddPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let (medication, _) = medication_with_schedule();
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+
+        panel.update(&mut tracker, Message::OpenExisting);
+        panel.update(&mut tracker, Message::SelectExisting(medication_id));
+        panel.update(&mut tracker, Message::OpenNewSchedule);
+        panel.schedule_hour = "10".into();
+        panel.schedule_minute = "30".into();
+        panel.schedule_period_time = "1".into();
+        panel.schedule_dose = "2".into();
+        panel.update(&mut tracker, Message::SaveSchedule);
+
+        assert_eq!(tracker.medications.len(), 1);
+        assert_eq!(tracker.medications[0].schedules.len(), 2);
+        assert_eq!(tracker.medications[0].schedules[1].dose, 2.0);
+        assert!(matches!(panel.section, Section::ScheduleList));
+    }
+
+    #[test]
+    fn editing_schedule_updates_dose_and_removes_future_records() {
+        let mut panel = MedicationAddPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let (medication, schedule_id) = medication_with_schedule();
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+        tracker.records.push(Record::new(
+            medication_id.clone(),
+            schedule_id.clone(),
+            Utc::now() + Duration::days(1),
+        ));
+        let past_record_id = uuid::Uuid::new_v4().to_string();
+        let mut past_record = Record::new(
+            medication_id.clone(),
+            schedule_id.clone(),
+            Utc::now() - Duration::days(1),
+        );
+        past_record.id = past_record_id.clone();
+        tracker.records.push(past_record);
+
+        panel.update(&mut tracker, Message::OpenExisting);
+        panel.update(&mut tracker, Message::SelectExisting(medication_id));
+        panel.update(&mut tracker, Message::EditSchedule(schedule_id));
+        panel.schedule_dose = "3".into();
+        panel.update(&mut tracker, Message::SaveSchedule);
+
+        assert_eq!(tracker.records.len(), 1);
+        assert_eq!(tracker.records[0].id, past_record_id);
+        assert_eq!(tracker.medications[0].schedules[0].dose, 3.0);
+    }
+
+    #[test]
+    fn deleting_schedule_removes_future_records_and_keeps_history() {
+        let mut panel = MedicationAddPanel::new();
+        let mut tracker = MedicationTracker::new();
+        let (medication, schedule_id) = medication_with_schedule();
+        let medication_id = medication.id.clone();
+        tracker.medications.push(medication);
+        tracker.records.push(Record::new(
+            medication_id.clone(),
+            schedule_id.clone(),
+            Utc::now() + Duration::days(1),
+        ));
+        let past_record_id = uuid::Uuid::new_v4().to_string();
+        let mut past_record = Record::new(
+            medication_id.clone(),
+            schedule_id.clone(),
+            Utc::now() - Duration::days(1),
+        );
+        past_record.id = past_record_id.clone();
+        tracker.records.push(past_record);
+
+        panel.update(&mut tracker, Message::OpenExisting);
+        panel.update(&mut tracker, Message::SelectExisting(medication_id));
+        panel.update(&mut tracker, Message::DeleteSchedule(schedule_id));
+
+        assert!(tracker.medications[0].schedules.is_empty());
+        assert_eq!(tracker.records.len(), 1);
+        assert_eq!(tracker.records[0].id, past_record_id);
     }
 }
