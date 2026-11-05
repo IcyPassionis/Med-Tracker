@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Med Tracker
+GenericName=Medication Tracker
+Comment=Track medications, schedules and reminders
+Exec=med-tracker
+Icon=med-tracker
+Terminal=false
+Categories=Science;MedicalSoftware;
+Keywords=medication;medicine;pill;reminder;health;
+StartupNotify=true

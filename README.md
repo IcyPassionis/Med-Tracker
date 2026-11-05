@@ -21,6 +21,29 @@ cargo build --release
 cargo build --release-lto
 ```
 
+## DEBIAN PACKAGE (.deb)
+
+Building the package needs the GTK 3 and ALSA development headers. On
+Debian/Ubuntu/Mint:
+
+```bash
+sudo apt install build-essential pkg-config libgtk-3-dev libasound2-dev
+```
+
+Then build and install it:
+
+```bash
+./packaging/build-deb.sh
+sudo apt install ./dist/med-tracker_<version>_<arch>.deb
+```
+
+The script runs `cargo build --release` itself. Set `MED_TRACKER_SKIP_BUILD=1`
+to package an existing `target/release/Med-Tracker`.
+
+Packages are built against the host glibc. A package built on Ubuntu 24.04 or
+Mint 22 runs on Ubuntu 24.04+ / Debian 13+, but not on older releases. Build
+inside an older container to target them.
+
 ## PLATFORM:
 
 - Linux X11 
