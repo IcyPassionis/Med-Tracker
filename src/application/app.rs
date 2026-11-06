@@ -20,7 +20,7 @@ pub struct App {
 }
 impl App {
     pub fn new() -> Self {
-        App {
+        let mut app = App {
             state: State::new(),
             settings: Settings::new(),
             system_theme: iced::Theme::CatppuccinMocha,
@@ -34,7 +34,11 @@ impl App {
             startup_waiting_for_tray: false,
             resource_startup_error: None,
             sidebar_visible: true,
-        }
+        };
+        app.uistate
+            .settingsui
+            .set_auto_startup_available(!crate::startup::is_appimage());
+        app
     }
 
     pub fn refresh_system_theme(&mut self) {
@@ -43,20 +47,6 @@ impl App {
 }
 impl Default for App {
     fn default() -> Self {
-        App {
-            state: State::new(),
-            settings: Settings::new(),
-            system_theme: iced::Theme::CatppuccinMocha,
-            uistate: UIState::new(),
-            medicationtracker: MedicationTracker::new(),
-            window_id: None,
-            tray_backend: None,
-            tray_ready: false,
-            tray_generation: 0,
-            tray_loss_generation: 0,
-            startup_waiting_for_tray: false,
-            resource_startup_error: None,
-            sidebar_visible: true,
-        }
+        App::new()
     }
 }

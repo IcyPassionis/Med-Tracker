@@ -80,12 +80,29 @@ fn validate_install(directory: &Path) -> Result<PathBuf, StartupError> {
     Ok(executable)
 }
 
+/// Whether the process was started from an AppImage runtime.
+///
+/// AppImages are mounted under a fresh temporary directory on every launch,
+/// so a login autostart entry that captured the running executable path would
+/// point at a directory that no longer exists after the AppImage exits.
+pub fn is_appimage() -> bool {
+    appimage_from_env(
+        std::env::var_os("APPIMAGE").as_deref(),
+        std::env::var_os("APPDIR").as_deref(),
+    )
+}
+
+fn appimage_from_env(appimage: Option<&std::ffi::OsStr>, appdir: Option<&std::ffi::OsStr>) -> bool {
+    appimage.is_some() || appdir.is_some()
+}
+
 /// Whether the running executable can manage login startup from an
 /// installed bundle.
 pub fn is_installed() -> bool {
-    installed_directory()
-        .and_then(|directory| validate_install(&directory))
-        .is_ok()
+    !is_appimage()
+        && installed_directory()
+            .and_then(|directory| validate_install(&directory))
+            .is_ok()
 }
 
 /// High-level message shown in Settings; technical details stay in stderr.
@@ -268,6 +285,21 @@ mod tests {
     use std::fs;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn appimage_markers_are_detected() {
+        use std::ffi::OsStr;
+
+        assert!(appimage_from_env(
+            Some(OsStr::new("/tmp/Med-Tracker-0.8.5-x86_64.AppImage")),
+            None
+        ));
+        assert!(appimage_from_env(
+            None,
+            Some(OsStr::new("/tmp/.mount_Med-Tra123"))
+        ));
+        assert!(!appimage_from_env(None, None));
+    }
 
     #[test]
     fn packaged_executable_is_used_for_autostart_instead_of_local_bundle() {

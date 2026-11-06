@@ -104,11 +104,16 @@ fn new() -> (App, Task<Message>) {
         crate::tray::x11_native::set_enabled(true, app.tray_generation);
     }
 
-    if let Err(error) = crate::startup::set_autostart(app.settings.is_auto_startup) {
-        eprintln!("Startup setting could not be reconciled: {error}");
-        app.uistate.settingsui.set_auto_startup_error(Some(
-            crate::startup::user_facing_autostart_error().to_string(),
-        ));
+    // AppImages mount under a temporary path that disappears on exit, so a
+    // login autostart entry would always be stale. Leave any existing entry
+    // alone and let the settings UI explain that the option is unavailable.
+    if !crate::startup::is_appimage() {
+        if let Err(error) = crate::startup::set_autostart(app.settings.is_auto_startup) {
+            eprintln!("Startup setting could not be reconciled: {error}");
+            app.uistate.settingsui.set_auto_startup_error(Some(
+                crate::startup::user_facing_autostart_error().to_string(),
+            ));
+        }
     }
 
     let resources_ready = RESOURCE_STARTUP_ERROR.get().is_some_and(Option::is_none);
@@ -455,6 +460,9 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
             |path| Message::Settings(settings::Message::SoundFileSelected(path)),
         ),
         Message::Settings(settings::Message::ToggleAutoStartup(enabled)) => {
+            if crate::startup::is_appimage() {
+                return Task::none();
+            }
             let previous = state.settings.is_auto_startup;
             if previous == enabled {
                 return Task::none();

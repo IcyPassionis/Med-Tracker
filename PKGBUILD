@@ -3,8 +3,8 @@
 BUILDDIR="${startdir}/.makepkg"
 
 pkgname=med-tracker
-pkgver=0.8.0
-pkgrel=2
+pkgver=0.8.5
+pkgrel=1
 pkgdesc='Desktop medication tracker with schedules, reminders and tray support'
 arch=('x86_64')
 url='https://github.com/IcyPassionis/Med-Tracker'

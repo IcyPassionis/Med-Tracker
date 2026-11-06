@@ -15,6 +15,7 @@ use crate::ui::style::settings::container::{setting_row as setting_row_style, se
 pub struct Settingsui {
     section: Section,
     auto_startup_error: Option<String>,
+    auto_startup_available: bool,
 }
 
 impl Settingsui {
@@ -22,6 +23,7 @@ impl Settingsui {
         Self {
             section: Section::Main,
             auto_startup_error: None,
+            auto_startup_available: true,
         }
     }
 
@@ -31,6 +33,10 @@ impl Settingsui {
 
     pub fn set_auto_startup_error(&mut self, error: Option<String>) {
         self.auto_startup_error = error;
+    }
+
+    pub fn set_auto_startup_available(&mut self, available: bool) {
+        self.auto_startup_available = available;
     }
 
     pub fn view<'a>(&self, settings: &'a Settings) -> Element<'a, Message> {
@@ -70,7 +76,7 @@ impl Settingsui {
                 ),
                 category_card(
                     "System",
-                    system_summary(settings),
+                    system_summary(settings, self.auto_startup_available),
                     "icons/settings.png",
                     Section::System,
                 ),
@@ -219,20 +225,29 @@ impl Settingsui {
         let minimize_to_tray = toggler(settings.is_minimize_to_tray)
             .on_toggle(Message::ToggleMinimizeToTray)
             .size(24);
-        let auto_startup = toggler(settings.is_auto_startup)
-            .on_toggle(Message::ToggleAutoStartup)
-            .size(24);
         let alarm_time = text_input("15", &settings.alarm_time_minutes.to_string())
             .size(text_px(16.0))
             .on_input(Message::SetAlarmTime)
             .width(Length::Fixed(100.0));
 
-        let auto_startup_setting = column![setting_row(
-            "Start with system",
-            "Launch Med-Tracker when you log in to your desktop.".to_string(),
-            auto_startup.into(),
-        )]
-        .spacing(6);
+        let auto_startup_setting = if self.auto_startup_available {
+            column![setting_row(
+                "Start with system",
+                "Launch Med-Tracker when you log in to your desktop.".to_string(),
+                toggler(settings.is_auto_startup)
+                    .on_toggle(Message::ToggleAutoStartup)
+                    .size(24)
+                    .into(),
+            )]
+            .spacing(6)
+        } else {
+            column![setting_row(
+                "Start with system",
+                "Not available in the AppImage build. Use your desktop's autostart settings instead.".to_string(),
+                text("Unavailable").size(text_px(14.0)).into(),
+            )]
+            .spacing(6)
+        };
         let auto_startup_setting = if let Some(error) = &self.auto_startup_error {
             auto_startup_setting.push(text(error.clone()).size(text_px(13.0)).style(
                 |theme: &Theme| iced::widget::text::Style {
@@ -516,13 +531,15 @@ fn sound_icon(settings: &Settings) -> &'static str {
     }
 }
 
-fn system_summary(settings: &Settings) -> String {
+fn system_summary(settings: &Settings, auto_startup_available: bool) -> String {
     let tray = if settings.is_minimize_to_tray {
         "Tray on"
     } else {
         "Tray off"
     };
-    let startup = if settings.is_auto_startup {
+    let startup = if !auto_startup_available {
+        "startup unavailable"
+    } else if settings.is_auto_startup {
         "startup on"
     } else {
         "startup off"
@@ -560,6 +577,13 @@ pub enum Message {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn appimage_build_marks_startup_as_unavailable() {
+        let settings = Settings::new();
+        assert!(system_summary(&settings, false).contains("startup unavailable"));
+        assert!(system_summary(&settings, true).contains("startup off"));
+    }
 
     #[test]
     fn font_size_message_clamps_and_reports_changes() {
