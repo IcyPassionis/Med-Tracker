@@ -16,7 +16,6 @@ pub struct App {
     pub tray_loss_generation: u64,
     pub startup_waiting_for_tray: bool,
     pub resource_startup_error: Option<String>,
-    pub startup_registration_error: Option<String>,
     pub sidebar_visible: bool,
 }
 impl App {
@@ -34,7 +33,6 @@ impl App {
             tray_loss_generation: 0,
             startup_waiting_for_tray: false,
             resource_startup_error: None,
-            startup_registration_error: None,
             sidebar_visible: true,
         }
     }
@@ -58,7 +56,6 @@ impl Default for App {
             tray_loss_generation: 0,
             startup_waiting_for_tray: false,
             resource_startup_error: None,
-            startup_registration_error: None,
             sidebar_visible: true,
         }
     }

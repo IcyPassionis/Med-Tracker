@@ -2,6 +2,7 @@ use crate::application::medication::record::Record;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
 use crate::ui::panel::home::reschedulepanel::ReschedulePanel;
+use crate::ui::scale::text_px;
 use crate::ui::style::alarm::button::{
     alarm_action_button, alarm_sound_action_button, alarm_take_button,
 };
@@ -31,7 +32,7 @@ impl AlarmUI {
             .collect();
 
         let inner = if records.is_empty() {
-            column![text("No alarms")].into()
+            column![text("No alarms").size(text_px(16.0))].into()
         } else if records.len() == 1 {
             self.single_record_content(tracker, records[0])
         } else {
@@ -91,7 +92,7 @@ impl AlarmUI {
             container(
                 row![
                     text(schedule_time_text)
-                        .size(24)
+                        .size(text_px(24.0))
                         .style(|theme: &ice::Theme| {
                             let palette = theme.extended_palette();
                             ice::widget::text::Style {
@@ -113,13 +114,16 @@ impl AlarmUI {
                 left: 0.0
             })
             .center_x(Length::Fill),
-            column![text(med_name).size(32), text(dose_text).size(16),]
-                .spacing(20)
-                .align_x(ice::alignment::Horizontal::Center),
+            column![
+                text(med_name).size(text_px(32.0)),
+                text(dose_text).size(text_px(16.0)),
+            ]
+            .spacing(20)
+            .align_x(ice::alignment::Horizontal::Center),
             container("").height(Length::Fill),
             column![
                 button(
-                    container(text("Take Medication"))
+                    container(text("Take Medication").size(text_px(16.0)))
                         .center_x(Length::Fill)
                         .center_y(Length::Fill)
                 )
@@ -128,7 +132,7 @@ impl AlarmUI {
                 .height(Length::FillPortion(1))
                 .on_press(Message::MarkTaken(record.id.clone())),
                 button(
-                    container(text("Skipped"))
+                    container(text("Skipped").size(text_px(16.0)))
                         .center_x(Length::Fill)
                         .center_y(Length::Fill)
                 )
@@ -138,7 +142,7 @@ impl AlarmUI {
                 .on_press(Message::MarkSkipped(record.id.clone())),
                 container(
                     button(
-                        container(text("Reschedule"))
+                        container(text("Reschedule").size(text_px(16.0)))
                             .center_x(Length::Fill)
                             .center_y(Length::Fill)
                     )
@@ -198,11 +202,15 @@ impl AlarmUI {
             };
             let medication_container = container(
                 row![
-                    column![text(med_name).size(22), text(dose_text).size(16),].spacing(10),
+                    column![
+                        text(med_name).size(text_px(22.0)),
+                        text(dose_text).size(text_px(16.0)),
+                    ]
+                    .spacing(10),
                     Space::new().width(Length::Fill),
                     row![
                         button(
-                            container(text("Take Now"))
+                            container(text("Take Now").size(text_px(16.0)))
                                 .center_x(Length::Fill)
                                 .center_y(Length::Fill)
                                 .padding(10)
@@ -211,7 +219,7 @@ impl AlarmUI {
                         .width(Length::Shrink)
                         .on_press(Message::MarkTaken(record.id.clone())),
                         button(
-                            container(text("Skip"))
+                            container(text("Skip").size(text_px(16.0)))
                                 .center_x(Length::Fill)
                                 .center_y(Length::Fill)
                                 .padding(10)
@@ -220,7 +228,7 @@ impl AlarmUI {
                         .width(Length::Shrink)
                         .on_press(Message::MarkSkipped(record.id.clone())),
                         button(
-                            container(text("Reschedule"))
+                            container(text("Reschedule").size(text_px(16.0)))
                                 .center_x(Length::Fill)
                                 .center_y(Length::Fill)
                                 .padding(10)
@@ -248,7 +256,7 @@ impl AlarmUI {
                         .padding(10)
                         .on_press(Message::ToggleMuted(record_ids.clone())),
                     text(schedule_time_text)
-                        .size(24)
+                        .size(text_px(24.0))
                         .style(|theme: &ice::Theme| {
                             let palette = theme.extended_palette();
                             ice::widget::text::Style {
@@ -266,7 +274,7 @@ impl AlarmUI {
                 left: 0.0
             })
             .center_x(Length::Fill),
-            container(text(header_text).size(32))
+            container(text(header_text).size(text_px(32.0)))
                 .center_x(Length::Fill)
                 .padding(ice::Padding {
                     top: 0.0,
@@ -276,21 +284,23 @@ impl AlarmUI {
                 }),
             scrollable(records_list).height(Length::Fill),
             row![
-                button(container(text("Take all")).center_x(Length::Fill))
+                button(container(text("Take all").size(text_px(16.0))).center_x(Length::Fill))
                     .style(alarm_take_button)
                     .width(Length::Fill)
                     .padding(12)
                     .on_press(Message::MarkAllTaken(record_ids.clone())),
-                button(container(text("Skip all")).center_x(Length::Fill))
+                button(container(text("Skip all").size(text_px(16.0))).center_x(Length::Fill))
                     .style(alarm_action_button)
                     .width(Length::Fill)
                     .padding(12)
                     .on_press(Message::MarkAllSkipped(record_ids.clone())),
-                button(container(text("Reschedule all")).center_x(Length::Fill))
-                    .style(alarm_action_button)
-                    .width(Length::Fill)
-                    .padding(12)
-                    .on_press(Message::MarkAllRescheduled(record_ids)),
+                button(
+                    container(text("Reschedule all").size(text_px(16.0))).center_x(Length::Fill)
+                )
+                .style(alarm_action_button)
+                .width(Length::Fill)
+                .padding(12)
+                .on_press(Message::MarkAllRescheduled(record_ids)),
             ]
             .spacing(15)
             .width(Length::Fill),

@@ -1,3 +1,4 @@
+use crate::ui::scale::text_px;
 use std::path::{Path, PathBuf};
 
 use iced::widget::{
@@ -5,7 +6,7 @@ use iced::widget::{
 };
 use iced::{ContentFit, Element, Fill, Length, Theme, alignment};
 
-use crate::application::states::settings::Settings;
+use crate::application::states::settings::{MAX_FONT_SIZE, MIN_FONT_SIZE, Settings};
 use crate::ui::style::button::bordered_button;
 use crate::ui::style::settings::button::category_button;
 use crate::ui::style::settings::container::{setting_row as setting_row_style, settings_surface};
@@ -52,7 +53,7 @@ impl Settingsui {
                     Section::Language,
                 ),
                 category_card(
-                    "Theme",
+                    "Appearance",
                     theme_summary(settings),
                     "icons/paint.png",
                     Section::Theme,
@@ -81,7 +82,7 @@ impl Settingsui {
         .width(Fill);
 
         centered_scrollable(
-            column![text("Options").size(30), category_grid]
+            column![text("Options").size(text_px(30.0)), category_grid]
                 .spacing(24)
                 .width(Fill)
                 .align_x(alignment::Horizontal::Center),
@@ -94,6 +95,7 @@ impl Settingsui {
             Some(settings.language.clone()),
             Message::SelectLanguage,
         )
+        .text_size(text_px(16.0))
         .width(Length::Fixed(220.0));
 
         self.detail_view(
@@ -112,25 +114,46 @@ impl Settingsui {
         let follow_system = toggler(!settings.is_theme_changed)
             .on_toggle(Message::FollowSystemTheme)
             .size(24);
+        let font_size = row![
+            slider(
+                MIN_FONT_SIZE as f32..=MAX_FONT_SIZE as f32,
+                settings.font_size as f32,
+                Message::SetFontSize,
+            )
+            .step(1.0)
+            .width(Fill),
+            text(format!("{} px", settings.font_size))
+                .size(text_px(16.0))
+                .width(Length::Fixed(52.0)),
+        ]
+        .spacing(16)
+        .align_y(alignment::Vertical::Center)
+        .width(Fill);
         let theme_selector = pick_list(
             Theme::ALL,
             Some(settings.theme.clone()),
             Message::SelectTheme,
         )
+        .text_size(text_px(16.0))
         .width(Length::Fixed(260.0));
-        let gtk_button = button("Apply GTK Theme")
+        let gtk_button = button(text("Apply GTK Theme").size(text_px(16.0)))
             .style(bordered_button)
             .padding([10, 18])
             .on_press(Message::ApplyGtkTheme);
 
         self.detail_view(
-            "Theme",
+            "Appearance",
             "icons/paint.png",
             column![
                 setting_row(
                     "Follow system theme",
                     "Use the operating system's light or dark preference.".to_string(),
                     follow_system.into(),
+                ),
+                setting_row(
+                    "Text size",
+                    "Scale all text in the application. Changes apply immediately.".to_string(),
+                    font_size.into(),
                 ),
                 setting_row(
                     "Iced theme",
@@ -152,7 +175,9 @@ impl Settingsui {
             slider(0.0..=1.0, settings.sound_volume, Message::SetVolume)
                 .step(0.01_f32)
                 .width(Fill),
-            text(format!("{:.0}%", settings.sound_volume * 100.0)).width(Length::Fixed(52.0)),
+            text(format!("{:.0}%", settings.sound_volume * 100.0))
+                .size(text_px(16.0))
+                .width(Length::Fixed(52.0)),
         ]
         .spacing(16)
         .align_y(alignment::Vertical::Center)
@@ -165,7 +190,7 @@ impl Settingsui {
             .and_then(|name| name.to_str())
             .unwrap_or("Default alarm sound")
             .to_string();
-        let choose_sound = button("Choose Sound File")
+        let choose_sound = button(text("Choose Sound File").size(text_px(16.0)))
             .style(bordered_button)
             .padding([10, 18])
             .on_press(Message::ChooseSoundFile);
@@ -198,6 +223,7 @@ impl Settingsui {
             .on_toggle(Message::ToggleAutoStartup)
             .size(24);
         let alarm_time = text_input("15", &settings.alarm_time_minutes.to_string())
+            .size(text_px(16.0))
             .on_input(Message::SetAlarmTime)
             .width(Length::Fixed(100.0));
 
@@ -208,11 +234,11 @@ impl Settingsui {
         )]
         .spacing(6);
         let auto_startup_setting = if let Some(error) = &self.auto_startup_error {
-            auto_startup_setting.push(text(error.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            auto_startup_setting.push(text(error.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }))
+                },
+            ))
         } else {
             auto_startup_setting
         };
@@ -263,7 +289,7 @@ impl Settingsui {
                         .content_fit(ContentFit::Contain)
                         .width(30)
                         .height(30),
-                    text(title).size(28),
+                    text(title).size(text_px(28.0)),
                 ]
                 .spacing(10)
                 .align_y(alignment::Vertical::Center),
@@ -321,6 +347,15 @@ impl Settingsui {
             Message::ApplyGtkTheme => {
                 settings.is_theme_changed = false;
                 true
+            }
+            Message::SetFontSize(size) => {
+                let size = (size.round() as u16).clamp(MIN_FONT_SIZE, MAX_FONT_SIZE);
+                if settings.font_size == size {
+                    false
+                } else {
+                    settings.font_size = size;
+                    true
+                }
             }
             Message::ToggleSound(enabled) => {
                 if settings.sound_enabled == enabled {
@@ -400,9 +435,12 @@ fn setting_row<'a>(
 ) -> Element<'a, Message> {
     container(
         row![
-            column![text(label).size(16), text(description).size(13)]
-                .spacing(4)
-                .width(Fill),
+            column![
+                text(label).size(text_px(16.0)),
+                text(description).size(text_px(13.0))
+            ]
+            .spacing(4)
+            .width(Fill),
             control,
         ]
         .spacing(20)
@@ -437,7 +475,11 @@ fn category_card<'a>(
             .content_fit(ContentFit::Contain)
             .width(36)
             .height(36),
-        column![text(title).size(20), text(summary).size(14)].spacing(6),
+        column![
+            text(title).size(text_px(20.0)),
+            text(summary).size(text_px(14.0))
+        ]
+        .spacing(6),
     ]
     .spacing(16)
     .align_y(alignment::Vertical::Center);
@@ -504,6 +546,7 @@ pub enum Message {
     SelectLanguage(String),
     SelectTheme(Theme),
     FollowSystemTheme(bool),
+    SetFontSize(f32),
     ApplyGtkTheme,
     ToggleSound(bool),
     SetVolume(f32),
@@ -512,4 +555,19 @@ pub enum Message {
     ToggleMinimizeToTray(bool),
     ToggleAutoStartup(bool),
     SetAlarmTime(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn font_size_message_clamps_and_reports_changes() {
+        let mut ui = Settingsui::new();
+        let mut settings = Settings::new();
+
+        assert!(ui.update(&mut settings, Message::SetFontSize(99.0)));
+        assert_eq!(settings.font_size, MAX_FONT_SIZE);
+        assert!(!ui.update(&mut settings, Message::SetFontSize(99.0)));
+    }
 }

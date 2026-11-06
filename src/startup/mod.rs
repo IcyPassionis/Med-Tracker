@@ -80,6 +80,23 @@ fn validate_install(directory: &Path) -> Result<PathBuf, StartupError> {
     Ok(executable)
 }
 
+/// Whether the running executable can manage login startup from an
+/// installed bundle.
+pub fn is_installed() -> bool {
+    installed_directory()
+        .and_then(|directory| validate_install(&directory))
+        .is_ok()
+}
+
+/// High-level message shown in Settings; technical details stay in stderr.
+pub fn user_facing_autostart_error() -> &'static str {
+    if is_installed() {
+        "Start with system could not be updated. Please try again."
+    } else {
+        "Start with system is only available in an installed build. Install Med-Tracker to enable it."
+    }
+}
+
 /// Enables or disables XDG login startup for an installed release bundle.
 pub fn set_autostart(enabled: bool) -> Result<(), StartupError> {
     let directory = installed_directory()?;

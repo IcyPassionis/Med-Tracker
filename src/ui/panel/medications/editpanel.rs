@@ -4,6 +4,7 @@ use crate::application::medication::periodtype::PeriodType;
 use crate::application::medication::schedule::Schedule;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::time::container::overlay_panel_container;
 use chrono::Weekday;
@@ -459,7 +460,7 @@ impl MedicationEditPanel {
         let schedule_count = med.map(|m| m.schedules.len()).unwrap_or(0);
 
         let header = row![
-            text(name).size(32).width(Fill).center(),
+            text(name).size(text_px(32.0)).width(Fill).center(),
             button(button_with_icon!("icons/cross.png", 50, 10))
                 .on_press(Message::Close)
                 .style(style::time::button::overlay_close_button),
@@ -467,48 +468,59 @@ impl MedicationEditPanel {
         .align_y(alignment::Vertical::Center);
 
         let info = column![
-            text(format!("Stock: {} {}", stock, dose_type)).size(16),
-            text(format!("Pill Dose: {} {}", pill_dose, dose_type)).size(16),
-            text(format!("Schedules: {}", schedule_count)).size(16),
+            text(format!("Stock: {} {}", stock, dose_type)).size(text_px(16.0)),
+            text(format!("Pill Dose: {} {}", pill_dose, dose_type)).size(text_px(16.0)),
+            text(format!("Schedules: {}", schedule_count)).size(text_px(16.0)),
         ]
         .spacing(8);
 
-        let edit_btn = button(text("Edit Info").width(Fill).center())
+        let edit_btn = button(text("Edit Info").size(text_px(16.0)).width(Fill).center())
             .style(style::time::button::add_button)
             .padding([12, 30])
             .width(Fill)
             .on_press(Message::GoToMedicationEdit);
 
-        let schedules_btn = button(text("Schedules").width(Fill).center())
+        let schedules_btn = button(text("Schedules").size(text_px(16.0)).width(Fill).center())
             .style(style::time::button::add_button)
             .padding([12, 30])
             .width(Fill)
             .on_press(Message::GoToScheduleList);
 
-        let stock_btn = button(text("Update Stock").width(Fill).center())
-            .style(style::time::button::add_button)
-            .padding([12, 30])
-            .width(Fill)
-            .on_press(Message::GoToStock);
+        let stock_btn = button(
+            text("Update Stock")
+                .size(text_px(16.0))
+                .width(Fill)
+                .center(),
+        )
+        .style(style::time::button::add_button)
+        .padding([12, 30])
+        .width(Fill)
+        .on_press(Message::GoToStock);
 
         let body = scrollable(
-            column![info, container(column![]).height(Fill), edit_btn, schedules_btn, stock_btn]
-                .spacing(16)
-                .width(Fill),
+            column![
+                info,
+                container(column![]).height(Fill),
+                edit_btn,
+                schedules_btn,
+                stock_btn
+            ]
+            .spacing(16)
+            .width(Fill),
         )
         .height(Fill);
 
-        let content = column![header, body]
-            .spacing(16)
-            .padding(30)
-            .height(Fill);
+        let content = column![header, body].spacing(16).padding(30).height(Fill);
 
         self.centered_panel(content.into())
     }
 
     fn medication_edit_overlay<'a>(&self) -> Element<'a, Message> {
         let header = row![
-            text("Edit Medication").size(32).width(Fill).center(),
+            text("Edit Medication")
+                .size(text_px(32.0))
+                .width(Fill)
+                .center(),
             button(button_with_icon!("icons/cross.png", 50, 10))
                 .on_press(Message::BackToOptions)
                 .style(style::time::button::overlay_close_button),
@@ -516,59 +528,66 @@ impl MedicationEditPanel {
         .align_y(alignment::Vertical::Center);
 
         let mut name_field = column![
-            text("Medication Name").size(16),
-            text_input("Name...", &self.name_input).on_input(Message::NameChange),
+            text("Medication Name").size(text_px(16.0)),
+            text_input("Name...", &self.name_input)
+                .size(text_px(16.0))
+                .on_input(Message::NameChange),
         ]
         .spacing(8);
         if let Some(err) = &self.name_error {
-            name_field = name_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            name_field = name_field.push(text(err.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }));
+                },
+            ));
         }
 
         let mut stock_field = column![
-            text("Stock").size(16),
-            text_input("0", &self.stock_input).on_input(Message::StockChange),
+            text("Stock").size(text_px(16.0)),
+            text_input("0", &self.stock_input)
+                .size(text_px(16.0))
+                .on_input(Message::StockChange),
         ]
         .spacing(8)
         .width(FillPortion(1));
         if let Some(err) = &self.stock_error {
-            stock_field = stock_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            stock_field = stock_field.push(text(err.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }));
+                },
+            ));
         }
 
         let dose_type_field = column![
-            text("Unit Type").size(16),
+            text("Unit Type").size(text_px(16.0)),
             pick_list(
                 vec![DoseType::Mg, DoseType::Mcg, DoseType::Ml, DoseType::Unit],
                 Some(self.dose_type),
                 Message::DoseTypeChange,
             )
+            .text_size(text_px(16.0))
             .width(Fill),
         ]
         .spacing(8)
         .width(FillPortion(1));
 
         let mut pill_dose_field = column![
-            text("Pill Dose").size(16),
-            text_input("1", &self.pill_dose_input).on_input(Message::PillDoseChange),
+            text("Pill Dose").size(text_px(16.0)),
+            text_input("1", &self.pill_dose_input)
+                .size(text_px(16.0))
+                .on_input(Message::PillDoseChange),
         ]
         .spacing(8);
         if let Some(err) = &self.pill_dose_error {
-            pill_dose_field = pill_dose_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            pill_dose_field = pill_dose_field.push(text(err.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }));
+                },
+            ));
         }
 
         let save_btn = container(
-            button("Save")
+            button(text("Save").size(text_px(16.0)))
                 .style(style::time::button::add_button)
                 .padding([15, 60])
                 .on_press(Message::SaveMedicationEdit),
@@ -576,9 +595,13 @@ impl MedicationEditPanel {
         .center_x(Fill);
 
         let form = scrollable(
-            column![name_field, row![stock_field, dose_type_field].spacing(20), pill_dose_field]
-                .spacing(20)
-                .width(Fill),
+            column![
+                name_field,
+                row![stock_field, dose_type_field].spacing(20),
+                pill_dose_field
+            ]
+            .spacing(20)
+            .width(Fill),
         )
         .height(Fill);
 
@@ -592,7 +615,7 @@ impl MedicationEditPanel {
 
     fn schedule_list_overlay<'a>(&self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
         let header = row![
-            text("Schedules").size(32).width(Fill).center(),
+            text("Schedules").size(text_px(32.0)).width(Fill).center(),
             button(button_with_icon!("icons/cross.png", 50, 10))
                 .on_press(Message::BackToOptionsFromSchedules)
                 .style(style::time::button::overlay_close_button),
@@ -615,7 +638,7 @@ impl MedicationEditPanel {
 
         let schedule_list: Element<'a, Message> = if schedules.is_empty() {
             scrollable(
-                container(text("No schedules yet").size(14).center())
+                container(text("No schedules yet").size(text_px(14.0)).center())
                     .width(Fill)
                     .padding([20, 0]),
             )
@@ -631,9 +654,9 @@ impl MedicationEditPanel {
                     None => String::from("Weekdays"),
                 };
                 let row_content = row![
-                    text(time_str).size(16).width(FillPortion(1)),
-                    text(dose_str).size(14).width(FillPortion(1)),
-                    text(period_str).size(14).width(Fill),
+                    text(time_str).size(text_px(16.0)).width(FillPortion(1)),
+                    text(dose_str).size(text_px(14.0)).width(FillPortion(1)),
+                    text(period_str).size(text_px(14.0)).width(Fill),
                 ]
                 .spacing(10)
                 .align_y(alignment::Vertical::Center);
@@ -659,7 +682,7 @@ impl MedicationEditPanel {
         };
 
         let add_btn = container(
-            button("+ Add New Schedule")
+            button(text("+ Add New Schedule").size(text_px(16.0)))
                 .style(style::time::button::add_button)
                 .padding([12, 30])
                 .on_press(Message::OpenNewSchedule),
@@ -688,7 +711,7 @@ impl MedicationEditPanel {
         };
 
         let header = row![
-            text(title).size(32).width(Fill).center(),
+            text(title).size(text_px(32.0)).width(Fill).center(),
             button(button_with_icon!("icons/cross.png", 50, 10))
                 .on_press(Message::BackToScheduleList)
                 .style(style::time::button::overlay_close_button),
@@ -697,12 +720,15 @@ impl MedicationEditPanel {
 
         let interval_active = self.schedule_mode == ScheduleMode::Interval;
         let mode_toggle = row![
-            button("Interval")
+            button(text("Interval").size(text_px(16.0)))
                 .style(style::time::button::calendar_button(interval_active, false))
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Interval)),
-            button("Weekdays")
-                .style(style::time::button::calendar_button(!interval_active, false))
+            button(text("Weekdays").size(text_px(16.0)))
+                .style(style::time::button::calendar_button(
+                    !interval_active,
+                    false
+                ))
                 .padding([10, 20])
                 .on_press(Message::ScheduleModeChange(ScheduleMode::Weekdays)),
         ]
@@ -710,15 +736,19 @@ impl MedicationEditPanel {
 
         let time_row = row![
             column![
-                text("Hour").size(16),
-                text_input("00", &self.schedule_hour).on_input(Message::ScheduleHourChange),
+                text("Hour").size(text_px(16.0)),
+                text_input("00", &self.schedule_hour)
+                    .size(text_px(16.0))
+                    .on_input(Message::ScheduleHourChange),
             ]
             .spacing(8)
             .width(FillPortion(1)),
-            text(":").size(24),
+            text(":").size(text_px(24.0)),
             column![
-                text("Minute").size(16),
-                text_input("00", &self.schedule_minute).on_input(Message::ScheduleMinuteChange),
+                text("Minute").size(text_px(16.0)),
+                text_input("00", &self.schedule_minute)
+                    .size(text_px(16.0))
+                    .on_input(Message::ScheduleMinuteChange),
             ]
             .spacing(8)
             .width(FillPortion(1)),
@@ -734,16 +764,18 @@ impl MedicationEditPanel {
             .unwrap_or_default();
 
         let mut dose_field = column![
-            text(format!("Dose ({})", dose_type_str)).size(16),
-            text_input("1", &self.schedule_dose).on_input(Message::ScheduleDoseChange),
+            text(format!("Dose ({})", dose_type_str)).size(text_px(16.0)),
+            text_input("1", &self.schedule_dose)
+                .size(text_px(16.0))
+                .on_input(Message::ScheduleDoseChange),
         ]
         .spacing(8);
         if let Some(err) = &self.schedule_error {
-            dose_field = dose_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            dose_field = dose_field.push(text(err.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }));
+                },
+            ));
         }
 
         let interval_form: Element<'a, Message> = if interval_active {
@@ -755,18 +787,20 @@ impl MedicationEditPanel {
             };
             column![
                 column![
-                    text("Repeats").size(16),
+                    text("Repeats").size(text_px(16.0)),
                     pick_list(
                         vec![PeriodType::Daily, PeriodType::Weekly, PeriodType::Monthly],
                         Some(self.schedule_period_type),
                         Message::SchedulePeriodTypeChange,
                     )
+                    .text_size(text_px(16.0))
                     .width(Fill),
                 ]
                 .spacing(8),
                 column![
-                    text(period_label).size(16),
+                    text(period_label).size(text_px(16.0)),
                     text_input("1", &self.schedule_period_time)
+                        .size(text_px(16.0))
                         .on_input(Message::SchedulePeriodTimeChange),
                 ]
                 .spacing(8),
@@ -787,7 +821,7 @@ impl MedicationEditPanel {
             for (day, label) in days {
                 let is_selected = self.selected_weekdays.contains(&day);
                 weekday_row = weekday_row.push(
-                    button(text(label).center())
+                    button(text(label).size(text_px(16.0)).center())
                         .style(style::time::button::weekday_button(is_selected))
                         .padding([10, 0])
                         .width(FillPortion(1))
@@ -798,11 +832,14 @@ impl MedicationEditPanel {
         };
 
         let save_btn = container(
-            button(if is_editing {
-                "Save Changes"
-            } else {
-                "Add Schedule"
-            })
+            button(
+                text(if is_editing {
+                    "Save Changes"
+                } else {
+                    "Add Schedule"
+                })
+                .size(text_px(16.0)),
+            )
             .style(style::time::button::add_button)
             .padding([15, 40])
             .on_press(Message::SaveSchedule),
@@ -826,7 +863,10 @@ impl MedicationEditPanel {
 
     fn stock_overlay<'a>(&self) -> Element<'a, Message> {
         let header = row![
-            text("Update Stock").size(32).width(Fill).center(),
+            text("Update Stock")
+                .size(text_px(32.0))
+                .width(Fill)
+                .center(),
             button(button_with_icon!("icons/cross.png", 50, 10))
                 .on_press(Message::BackToOptionsFromStock)
                 .style(style::time::button::overlay_close_button),
@@ -834,20 +874,22 @@ impl MedicationEditPanel {
         .align_y(alignment::Vertical::Center);
 
         let mut stock_field = column![
-            text("Current Stock").size(16),
-            text_input("0", &self.stock_edit_input).on_input(Message::StockEditChange),
+            text("Current Stock").size(text_px(16.0)),
+            text_input("0", &self.stock_edit_input)
+                .size(text_px(16.0))
+                .on_input(Message::StockEditChange),
         ]
         .spacing(8);
         if let Some(err) = &self.stock_edit_error {
-            stock_field = stock_field.push(text(err.clone()).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            stock_field = stock_field.push(text(err.clone()).size(text_px(13.0)).style(
+                |theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
-                }
-            }));
+                },
+            ));
         }
 
         let save_btn = container(
-            button("Save")
+            button(text("Save").size(text_px(16.0)))
                 .style(style::time::button::add_button)
                 .padding([15, 60])
                 .on_press(Message::SaveStock),

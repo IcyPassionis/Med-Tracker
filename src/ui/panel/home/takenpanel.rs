@@ -1,5 +1,6 @@
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::alarm::button::{alarm_action_button, alarm_take_button};
 use crate::ui::style::medications::container::backdrop;
@@ -72,7 +73,7 @@ impl TakenPanel {
     fn choice_view(&self) -> Element<'_, Message> {
         let header = row![
             text("When did you take your medication?")
-                .size(18)
+                .size(text_px(18.0))
                 .width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .style(style::time::button::overlay_close_button)
@@ -82,14 +83,18 @@ impl TakenPanel {
         .align_y(alignment::Vertical::Center);
 
         let buttons = column![
-            button(container(text("Now")).center_x(Fill).center_y(Fill))
-                .style(alarm_take_button)
-                .width(Fill)
-                .height(48)
-                .padding(12)
-                .on_press(Message::TakeNow),
             button(
-                container(text("Pick Exact Time"))
+                container(text("Now").size(text_px(16.0)))
+                    .center_x(Fill)
+                    .center_y(Fill)
+            )
+            .style(alarm_take_button)
+            .width(Fill)
+            .height(48)
+            .padding(12)
+            .on_press(Message::TakeNow),
+            button(
+                container(text("Pick Exact Time").size(text_px(16.0)))
                     .center_x(Fill)
                     .center_y(Fill)
             )
@@ -113,7 +118,7 @@ impl TakenPanel {
 
     fn exact_time_view(&self) -> Element<'_, Message> {
         let header = row![
-            text("Select time").size(22).width(Fill),
+            text("Select time").size(text_px(22.0)).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .style(style::time::button::overlay_close_button)
                 .padding(5)
@@ -123,34 +128,39 @@ impl TakenPanel {
 
         let time_row = row![
             text_input("HH", &self.hour)
+                .size(text_px(16.0))
                 .on_input(Message::HourChange)
                 .width(70)
-                .size(24),
-            text(":").size(24),
+                .size(text_px(24.0)),
+            text(":").size(text_px(24.0)),
             text_input("MM", &self.minute)
+                .size(text_px(16.0))
                 .on_input(Message::MinuteChange)
                 .width(70)
-                .size(24),
+                .size(text_px(24.0)),
         ]
         .spacing(8)
         .align_y(alignment::Vertical::Center);
 
-        let done_button = button(container(text("Done")).center_x(Fill).center_y(Fill))
-            .style(style::time::button::add_button)
-            .width(Fill)
-            .height(48)
-            .padding(12)
-            .on_press(Message::Confirm);
+        let done_button = button(
+            container(text("Done").size(text_px(16.0)))
+                .center_x(Fill)
+                .center_y(Fill),
+        )
+        .style(style::time::button::add_button)
+        .width(Fill)
+        .height(48)
+        .padding(12)
+        .on_press(Message::Confirm);
 
         let mut content = column![header, time_row].spacing(20);
 
         if let Some(warning) = &self.warning {
-            let warning_text =
-                text(warning)
-                    .size(14)
-                    .style(|theme: &iced::Theme| iced::widget::text::Style {
-                        color: Some(theme.extended_palette().danger.base.color),
-                    });
+            let warning_text = text(warning)
+                .size(text_px(14.0))
+                .style(|theme: &iced::Theme| iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                });
             content = content.push(warning_text);
         }
 

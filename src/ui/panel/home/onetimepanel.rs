@@ -1,6 +1,7 @@
 use crate::application::medication::dosetype::DoseType;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::overlay_panel_container;
@@ -233,7 +234,7 @@ impl OneTimeRecordPanel {
         selected_date: NaiveDate,
     ) -> Element<'a, Message> {
         let header = row![
-            text("One-Time Record").size(32).width(Fill),
+            text("One-Time Record").size(text_px(32.0)).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .on_press(Message::Close)
                 .style(style::time::button::overlay_close_button)
@@ -242,8 +243,10 @@ impl OneTimeRecordPanel {
 
         let name_field: Element<'a, Message> = if tracker.medications.is_empty() {
             column![
-                text("Name").size(16),
-                text_input("Enter record name...", &self.name).on_input(Message::NameChange),
+                text("Name").size(text_px(16.0)),
+                text_input("Enter record name...", &self.name)
+                    .size(text_px(16.0))
+                    .on_input(Message::NameChange),
             ]
             .spacing(8)
             .into()
@@ -263,39 +266,46 @@ impl OneTimeRecordPanel {
                     }),
             );
             let mut field = column![
-                text("Name").size(16),
+                text("Name").size(text_px(16.0)),
                 pick_list(
                     choices,
                     Some(self.selected_name.clone()),
                     Message::NameChoiceChange,
                 )
+                .text_size(text_px(16.0))
                 .width(Fill),
             ]
             .spacing(8);
             if matches!(self.selected_name, NameChoice::New) {
                 field = field.push(
-                    text_input("Enter record name...", &self.name).on_input(Message::NameChange),
+                    text_input("Enter record name...", &self.name)
+                        .size(text_px(16.0))
+                        .on_input(Message::NameChange),
                 );
             } else {
-                field = field.push(text(format!("Recording for {}", self.name)).size(14));
+                field =
+                    field.push(text(format!("Recording for {}", self.name)).size(text_px(14.0)));
             }
             field.into()
         };
 
         let dose_field = column![
-            text("Dose").size(16),
-            text_input("1", &self.dose).on_input(Message::DoseChange),
+            text("Dose").size(text_px(16.0)),
+            text_input("1", &self.dose)
+                .size(text_px(16.0))
+                .on_input(Message::DoseChange),
         ]
         .spacing(8)
         .width(FillPortion(1));
 
         let dose_type_field = column![
-            text("Unit Type").size(16),
+            text("Unit Type").size(text_px(16.0)),
             pick_list(
                 vec![DoseType::Mg, DoseType::Mcg, DoseType::Ml, DoseType::Unit],
                 Some(self.dose_type),
                 Message::DoseTypeChange,
             )
+            .text_size(text_px(16.0))
             .width(Fill),
         ]
         .spacing(8)
@@ -303,19 +313,21 @@ impl OneTimeRecordPanel {
 
         let time_row = row![
             column![
-                text("Hour").size(16),
+                text("Hour").size(text_px(16.0)),
                 text_input("HH", &self.hour)
+                    .size(text_px(16.0))
                     .on_input(Message::HourChange)
-                    .size(20),
+                    .size(text_px(20.0)),
             ]
             .spacing(8)
             .width(FillPortion(1)),
-            text(":").size(24),
+            text(":").size(text_px(24.0)),
             column![
-                text("Minute").size(16),
+                text("Minute").size(text_px(16.0)),
                 text_input("MM", &self.minute)
+                    .size(text_px(16.0))
                     .on_input(Message::MinuteChange)
-                    .size(20),
+                    .size(text_px(20.0)),
             ]
             .spacing(8)
             .width(FillPortion(1)),
@@ -326,27 +338,27 @@ impl OneTimeRecordPanel {
         let mut form = column![
             name_field,
             row![dose_field, dose_type_field].spacing(20),
-            text(format!("Date: {}", selected_date.format("%d-%m-%Y"))).size(16),
+            text(format!("Date: {}", selected_date.format("%d-%m-%Y"))).size(text_px(16.0)),
             time_row,
         ]
         .spacing(20);
 
         if let Some(warning) = &self.warning {
-            form = form.push(text(warning).size(13).style(|theme: &Theme| {
+            form = form.push(text(warning).size(text_px(13.0)).style(|theme: &Theme| {
                 iced::widget::text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
                 }
             }));
         }
 
-        let take_now = button("Take Now")
+        let take_now = button(text("Take Now").size(text_px(16.0)))
             .style(style::time::button::add_button)
             .padding([15, 30])
             .on_press_maybe(
                 (selected_date == Local::now().date_naive()).then_some(Message::TakeNow),
             );
         let buttons = row![
-            button("Set Alarm")
+            button(text("Set Alarm").size(text_px(16.0)))
                 .style(style::time::button::add_button)
                 .padding([15, 30])
                 .on_press(Message::SetAlarm),

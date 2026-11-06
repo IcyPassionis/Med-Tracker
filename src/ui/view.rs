@@ -1,3 +1,4 @@
+use crate::ui::scale::text_px;
 use iced::widget::{column, container, text};
 use iced::{self as ice, Element, Length::Fill, Theme, window};
 
@@ -12,6 +13,7 @@ pub fn title(_state: &App, _window_id: window::Id) -> String {
 }
 
 pub fn view(state: &App, _window_id: window::Id) -> Element<Message> {
+    crate::ui::scale::set_font_size(state.settings.font_size);
     main_view(state)
 }
 
@@ -19,14 +21,7 @@ fn main_view(state: &App) -> Element<Message> {
     let mut content = column![].width(Fill).height(Fill);
     if let Some(error) = &state.resource_startup_error {
         content = content.push(
-            container(text(error.clone()).size(14))
-                .padding(10)
-                .width(Fill),
-        );
-    }
-    if let Some(error) = &state.startup_registration_error {
-        content = content.push(
-            container(text(format!("Login startup could not be reconciled: {error}")).size(14))
+            container(text(error.clone()).size(text_px(14.0)))
                 .padding(10)
                 .width(Fill),
         );

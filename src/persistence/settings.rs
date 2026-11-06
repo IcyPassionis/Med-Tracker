@@ -1,4 +1,4 @@
-use crate::application::states::settings::Settings;
+use crate::application::states::settings::{MAX_FONT_SIZE, MIN_FONT_SIZE, Settings};
 use iced::Theme;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -60,7 +60,7 @@ impl PersistedSettings {
         };
 
         Settings {
-            font_size: self.font_size,
+            font_size: self.font_size.clamp(MIN_FONT_SIZE, MAX_FONT_SIZE),
             language: self.language,
             is_theme_changed: self.is_theme_changed,
             theme: theme_from_name(&self.theme).unwrap_or(defaults.theme),
@@ -177,6 +177,19 @@ mod tests {
         assert_eq!(restored.language, "English");
         assert!(restored.sound_enabled);
         assert_eq!(restored.alarm_time_minutes, 15);
+    }
+
+    #[test]
+    fn font_size_is_clamped_when_loaded() {
+        let low = serde_json::from_str::<PersistedSettings>(r#"{"font_size":0}"#)
+            .unwrap()
+            .into_runtime();
+        let high = serde_json::from_str::<PersistedSettings>(r#"{"font_size":99}"#)
+            .unwrap()
+            .into_runtime();
+
+        assert_eq!(low.font_size, MIN_FONT_SIZE);
+        assert_eq!(high.font_size, MAX_FONT_SIZE);
     }
 
     #[test]

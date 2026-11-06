@@ -1,4 +1,9 @@
 use iced as ice;
+
+pub const MIN_FONT_SIZE: u16 = 12;
+pub const MAX_FONT_SIZE: u16 = 18;
+pub const DEFAULT_FONT_SIZE: u16 = 14;
+
 pub struct Settings {
     pub font_size: u16,
     pub language: String,
@@ -15,7 +20,7 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Settings {
         Settings {
-            font_size: 14,
+            font_size: DEFAULT_FONT_SIZE,
             language: "English".to_string(),
             is_theme_changed: false,
             theme: ice::Theme::Dark,

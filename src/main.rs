@@ -106,10 +106,9 @@ fn new() -> (App, Task<Message>) {
 
     if let Err(error) = crate::startup::set_autostart(app.settings.is_auto_startup) {
         eprintln!("Startup setting could not be reconciled: {error}");
-        app.startup_registration_error = Some(error.to_string());
-        app.uistate
-            .settingsui
-            .set_auto_startup_error(Some(error.to_string()));
+        app.uistate.settingsui.set_auto_startup_error(Some(
+            crate::startup::user_facing_autostart_error().to_string(),
+        ));
     }
 
     let resources_ready = RESOURCE_STARTUP_ERROR.get().is_some_and(Option::is_none);
@@ -476,7 +475,9 @@ fn update(state: &mut App, message: Message) -> Task<Message> {
                 Ok(()) => state.settings.is_auto_startup = enabled,
                 Err(error) => {
                     eprintln!("Start-with-system setting failed: {error}");
-                    state.uistate.settingsui.set_auto_startup_error(Some(error));
+                    state.uistate.settingsui.set_auto_startup_error(Some(
+                        crate::startup::user_facing_autostart_error().to_string(),
+                    ));
                 }
             }
             Task::none()

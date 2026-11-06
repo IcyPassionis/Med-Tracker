@@ -2,6 +2,7 @@ use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::{button_with_icon, button_with_icon_text};
 use crate::ui::panel::medicationadd;
 use crate::ui::panel::medications::{editpanel, refillpanel};
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::medications::button as med_button;
 use crate::ui::style::medications::container as med_container;
@@ -207,8 +208,8 @@ impl Record {
             .style(med_container::pill_icon_container);
 
             let mut info = column![
-                text(&med.name).size(20),
-                text(format!("{} {}", med.stock, med.dose_type)).size(14),
+                text(&med.name).size(text_px(20.0)),
+                text(format!("{} {}", med.stock, med.dose_type)).size(text_px(14.0)),
             ]
             .spacing(4)
             .width(Fill);
@@ -216,11 +217,11 @@ impl Record {
             if !med.is_archived
                 && let Some(days) = tracker.days_left(&med.id)
             {
-                info = info.push(text(format!("{} days left", days)).size(14));
+                info = info.push(text(format!("{} days left", days)).size(text_px(14.0)));
             }
 
             if med.is_archived {
-                info = info.push(text("Archived").size(14));
+                info = info.push(text("Archived").size(text_px(14.0)));
             }
 
             let archive_btn = button(button_with_icon!("icons/archive.png", 20, 0))
@@ -273,7 +274,7 @@ impl Record {
             } else {
                 "No medications added yet."
             };
-            container(text(message).size(16))
+            container(text(message).size(text_px(16.0)))
                 .width(Fill)
                 .height(Fill)
                 .center_x(Fill)
@@ -302,16 +303,16 @@ impl Record {
     fn confirm_delete_overlay<'a>(&self) -> Element<'a, Message> {
         let panel = container(
             column![
-                text("Delete medication?").size(20),
+                text("Delete medication?").size(text_px(20.0)),
                 text("This will also delete this medication's history. Use Archive instead if you want to keep it.")
-                    .size(13)
+                    .size(text_px(13.0))
                     .width(360),
                 row![
-                    button("Cancel")
+                    button(text("Cancel").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::CancelDelete),
-                    button("Delete")
+                    button(text("Delete").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::ConfirmDelete),
@@ -336,16 +337,16 @@ impl Record {
     fn confirm_archive_overlay<'a>(&self) -> Element<'a, Message> {
         let panel = container(
             column![
-                text("Archive medication?").size(20),
+                text("Archive medication?").size(text_px(20.0)),
                 text("Future records will be removed. Today's and past records will be kept.")
-                    .size(13)
+                    .size(text_px(13.0))
                     .width(360),
                 row![
-                    button("Cancel")
+                    button(text("Cancel").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::CancelArchive),
-                    button("Archive")
+                    button(text("Archive").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::ConfirmArchive),
@@ -370,16 +371,16 @@ impl Record {
     fn confirm_unarchive_overlay<'a>(&self) -> Element<'a, Message> {
         let panel = container(
             column![
-                text("Restore medication?").size(20),
+                text("Restore medication?").size(text_px(20.0)),
                 text("Future records will be generated again. Today's and past records are not changed.")
-                    .size(13)
+                    .size(text_px(13.0))
                     .width(360),
                 row![
-                    button("Cancel")
+                    button(text("Cancel").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::CancelUnarchive),
-                    button("Restore")
+                    button(text("Restore").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::ConfirmUnarchive),

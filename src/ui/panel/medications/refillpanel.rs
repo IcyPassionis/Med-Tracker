@@ -1,5 +1,6 @@
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::overlay_panel_container;
@@ -47,7 +48,7 @@ impl RefillPanel {
 
         let header = row![
             text("How many pills you want to add?")
-                .size(18)
+                .size(text_px(18.0))
                 .width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .style(style::time::button::overlay_close_button)
@@ -57,36 +58,38 @@ impl RefillPanel {
         .align_y(alignment::Vertical::Center);
 
         let pills_input = text_input("0", &self.pills_input)
+            .size(text_px(16.0))
             .on_input(Message::PillsChange)
             .width(Fill)
-            .size(24);
+            .size(text_px(24.0));
 
-        let add_button = button(container(text("Add")).center_x(Fill).center_y(Fill))
-            .style(style::time::button::add_button)
-            .width(Fill)
-            .height(48)
-            .padding(12)
-            .on_press(Message::Confirm);
+        let add_button = button(
+            container(text("Add").size(text_px(16.0)))
+                .center_x(Fill)
+                .center_y(Fill),
+        )
+        .style(style::time::button::add_button)
+        .width(Fill)
+        .height(48)
+        .padding(12)
+        .on_press(Message::Confirm);
 
         let mut content = column![header, pills_input]
             .spacing(20)
             .padding(Padding::new(30.0));
 
         if let Some(warning) = &self.warning {
-            let warning_text =
-                text(warning)
-                    .size(14)
-                    .style(|theme: &iced::Theme| iced::widget::text::Style {
-                        color: Some(theme.extended_palette().danger.base.color),
-                    });
+            let warning_text = text(warning)
+                .size(text_px(14.0))
+                .style(|theme: &iced::Theme| iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                });
             content = content.push(warning_text);
         }
 
         content = content.push(add_button);
 
-        let panel = container(content)
-            .style(overlay_panel_container)
-            .width(320);
+        let panel = container(content).style(overlay_panel_container).width(320);
 
         let overlay = container(container(panel).center(Fill))
             .style(backdrop)

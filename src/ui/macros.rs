@@ -6,7 +6,7 @@ macro_rules! button_with_icon_text{
                     .content_fit(ContentFit::Cover)
                     .width(30)
                     .height(30),
-                text($label).size(14).align_y(alignment::Vertical::Bottom)
+                text($label).size($crate::ui::scale::text_px(14.0)).align_y(alignment::Vertical::Bottom)
             ].spacing(10).align_y(alignment::Vertical::Center)
         ).align_y(alignment::Vertical::Center)
     };

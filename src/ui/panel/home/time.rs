@@ -4,6 +4,7 @@ use crate::application::medication::record::Record;
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::{self, button_with_icon};
 use crate::ui::panel::medicationadd;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::{record_status_container, schedule_container};
@@ -255,7 +256,7 @@ impl TimeUI {
         for ((hour, minute), records) in &grouped {
             let mut schedule_container_column = column![].padding([20, 40]).spacing(20);
             let hour_minute = format!("{:02}:{:02}", hour, minute);
-            let schedule_label = text(hour_minute).size(32).width(Fill);
+            let schedule_label = text(hour_minute).size(text_px(32.0)).width(Fill);
             let record_ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
             let all_muted = records.iter().all(|record| record.is_muted);
             let reschedule_button = button(button_with_icon!("icons/clock.png", 32, 10))
@@ -324,9 +325,12 @@ impl TimeUI {
                         }
                     }
                 };
-                let medication_info = column![text(name).size(22), text(status_text).size(16)]
-                    .spacing(5)
-                    .width(Fill);
+                let medication_info = column![
+                    text(name).size(text_px(22.0)),
+                    text(status_text).size(text_px(16.0))
+                ]
+                .spacing(5)
+                .width(Fill);
                 let second_action: Element<'a, Message> = if is_one_time {
                     button(button_with_icon!("icons/trash.png", 32, 10))
                         .style(style::time::button::record_action_button)
@@ -414,7 +418,7 @@ impl TimeUI {
 
     fn add_choice_overlay(&self, tracker: &MedicationTracker) -> Element<'_, Message> {
         let header = row![
-            text("Add Record").size(28).width(Fill),
+            text("Add Record").size(text_px(28.0)).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .style(style::time::button::overlay_close_button)
                 .padding(5)
@@ -423,7 +427,7 @@ impl TimeUI {
         .align_y(alignment::Vertical::Center);
 
         let mut options = column![
-            button(container(text("New Medication")).center_x(Fill))
+            button(container(text("New Medication").size(text_px(16.0))).center_x(Fill))
                 .style(style::time::button::add_button)
                 .padding([15, 30])
                 .width(Fill)
@@ -437,16 +441,18 @@ impl TimeUI {
             .any(|medication| !medication.is_archived)
         {
             options = options.push(
-                button(container(text("Add Schedule to Existing")).center_x(Fill))
-                    .style(style::time::button::add_button)
-                    .padding([15, 30])
-                    .width(Fill)
-                    .on_press(Message::OpenExistingMedication),
+                button(
+                    container(text("Add Schedule to Existing").size(text_px(16.0))).center_x(Fill),
+                )
+                .style(style::time::button::add_button)
+                .padding([15, 30])
+                .width(Fill)
+                .on_press(Message::OpenExistingMedication),
             );
         }
 
         options = options.push(
-            button(container(text("One-Time Record")).center_x(Fill))
+            button(container(text("One-Time Record").size(text_px(16.0))).center_x(Fill))
                 .style(style::time::button::add_button)
                 .padding([15, 30])
                 .width(Fill)
@@ -471,13 +477,13 @@ impl TimeUI {
 
         let panel = container(
             column![
-                text("Are you sure?").size(20),
+                text("Are you sure?").size(text_px(20.0)),
                 row![
-                    button("No")
+                    button(text("No").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::CancelDelete),
-                    button("Yes")
+                    button(text("Yes").size(text_px(16.0)))
                         .style(style::time::button::add_button)
                         .padding([12, 30])
                         .on_press(Message::ConfirmDelete(id)),
@@ -522,7 +528,11 @@ impl TimeUI {
                 chrono::Weekday::Sun => "Sun",
             };
             let day_month = format!("{}/{}", date.day(), date.month());
-            let label = column![text(weekday).center(), text(day_month).center()].spacing(20);
+            let label = column![
+                text(weekday).size(text_px(16.0)).center(),
+                text(day_month).size(text_px(16.0)).center()
+            ]
+            .spacing(20);
             let is_selected = date == self.selected_date;
             let is_today = date == today;
             days = days.push(
@@ -539,11 +549,11 @@ impl TimeUI {
             ))
             .id(self.calendar_scroll_id.clone());
 
-        let left_arrow = button(text("<").size(20))
+        let left_arrow = button(text("<").size(text_px(20.0)))
             .style(style::time::button::record_action_button)
             .padding([10, 14])
             .on_press(Message::ScrollCalendarLeft);
-        let right_arrow = button(text(">").size(20))
+        let right_arrow = button(text(">").size(text_px(20.0)))
             .style(style::time::button::record_action_button)
             .padding([10, 14])
             .on_press(Message::ScrollCalendarRight);

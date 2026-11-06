@@ -1,6 +1,7 @@
 mod content;
 pub mod macros;
 pub mod panel;
+pub mod scale;
 mod sidebar;
 mod style;
 pub mod theme;

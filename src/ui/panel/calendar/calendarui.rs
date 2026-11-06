@@ -1,5 +1,6 @@
 use crate::application::medication::occurrencestatus::OccurrenceStatus;
 use crate::application::states::medicationtracker::MedicationTracker;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use chrono::{Datelike, Duration, Local, NaiveDate};
 use iced::widget::{button, column, container, row, text};
@@ -30,10 +31,7 @@ impl CalendarUI {
         container(calendar).center_x(Fill).center_y(Fill).into()
     }
 
-    fn calendar_top_view<'a>(
-        &'a self,
-        tracker: &'a MedicationTracker,
-    ) -> Element<'a, Message> {
+    fn calendar_top_view<'a>(&'a self, tracker: &'a MedicationTracker) -> Element<'a, Message> {
         let first_day = first_of_month(self.month);
         let days_in_month = (first_of_month(next_month(first_day)) - Duration::days(1)).day();
         let leading_empty = first_day.weekday().num_days_from_monday() as usize;
@@ -66,7 +64,7 @@ impl CalendarUI {
         let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
             .into_iter()
             .fold(row![].spacing(8).width(Fill), |row, day| {
-                row.push(container(text(day).center()).width(Fill))
+                row.push(container(text(day).size(text_px(16.0)).center()).width(Fill))
             });
         let week_column = weeks
             .into_iter()
@@ -78,14 +76,14 @@ impl CalendarUI {
     fn calendar_bottom_panel_view<'a>(&'a self) -> Element<'a, Message> {
         let latest_month = next_month(first_of_month(Local::now().date_naive()));
         let can_go_next = self.month < latest_month;
-        let month_label = text(self.month.format("%B %Y").to_string()).size(24);
+        let month_label = text(self.month.format("%B %Y").to_string()).size(text_px(24.0));
 
         row![
-            button(text("<").size(22))
+            button(text("<").size(text_px(22.0)))
                 .style(style::calendar::navigation_button)
                 .on_press(Message::PreviousMonth),
             container(month_label).center_x(Fill),
-            button(text(">").size(22))
+            button(text(">").size(text_px(22.0)))
                 .style(style::calendar::navigation_button)
                 .on_press_maybe(can_go_next.then_some(Message::NextMonth)),
         ]
@@ -97,8 +95,8 @@ impl CalendarUI {
 
     fn calendar_day_button(date: NaiveDate, percentage: u8) -> Element<'static, Message> {
         let label = column![
-            text(date.day().to_string()).size(20),
-            text(format!("{}%", percentage)).size(11)
+            text(date.day().to_string()).size(text_px(20.0)),
+            text(format!("{}%", percentage)).size(text_px(11.0))
         ]
         .spacing(3)
         .align_x(alignment::Horizontal::Center);

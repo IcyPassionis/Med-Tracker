@@ -1,5 +1,6 @@
 use crate::application::states::medicationtracker::MedicationTracker;
 use crate::ui::macros::button_with_icon;
+use crate::ui::scale::text_px;
 use crate::ui::style;
 use crate::ui::style::medications::container::backdrop;
 use crate::ui::style::time::container::overlay_panel_container;
@@ -58,20 +59,22 @@ impl ReschedulePanel {
 
         let time_row = row![
             text_input("HH", &self.hour)
+                .size(text_px(16.0))
                 .on_input(Message::HourChange)
                 .width(70)
-                .size(24),
-            text(":").size(24),
+                .size(text_px(24.0)),
+            text(":").size(text_px(24.0)),
             text_input("MM", &self.minute)
+                .size(text_px(16.0))
                 .on_input(Message::MinuteChange)
                 .width(70)
-                .size(24),
+                .size(text_px(24.0)),
         ]
         .spacing(8)
         .align_y(iced::alignment::Vertical::Center);
 
         let header = row![
-            text("Reschedule").size(22).width(Fill),
+            text("Reschedule").size(text_px(22.0)).width(Fill),
             button(button_with_icon!("icons/cross.png", 30, 10))
                 .style(style::time::button::overlay_close_button)
                 .padding(5)
@@ -79,31 +82,34 @@ impl ReschedulePanel {
         ]
         .align_y(iced::alignment::Vertical::Center);
 
-        let done_button = button(container(text("Done")).center_x(Fill).center_y(Fill))
-            .style(style::time::button::add_button)
-            .width(Fill)
-            .height(48)
-            .padding(12)
-            .on_press(Message::Confirm);
+        let done_button = button(
+            container(text("Done").size(text_px(16.0)))
+                .center_x(Fill)
+                .center_y(Fill),
+        )
+        .style(style::time::button::add_button)
+        .width(Fill)
+        .height(48)
+        .padding(12)
+        .on_press(Message::Confirm);
 
         let mut content = column![header, time_row].spacing(20);
 
         if self.record_ids.len() > 1 {
             let count_text = format!("Rescheduling {} records", self.record_ids.len());
-            content = content.push(text(count_text).size(13).style(|theme: &iced::Theme| {
-                iced::widget::text::Style {
+            content = content.push(text(count_text).size(text_px(13.0)).style(
+                |theme: &iced::Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().background.weak.text),
-                }
-            }));
+                },
+            ));
         }
 
         if let Some(warning) = &self.warning {
-            let warning_text =
-                text(warning)
-                    .size(14)
-                    .style(|theme: &iced::Theme| iced::widget::text::Style {
-                        color: Some(theme.extended_palette().danger.base.color),
-                    });
+            let warning_text = text(warning)
+                .size(text_px(14.0))
+                .style(|theme: &iced::Theme| iced::widget::text::Style {
+                    color: Some(theme.extended_palette().danger.base.color),
+                });
             content = content.push(warning_text);
         }
 
